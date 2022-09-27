@@ -39,8 +39,8 @@ void FAnimNode_PFNN::LoadXForms()
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	const FString RelativePath = FPaths::ProjectDir();
-	const FString FullPathParents = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_parents.bin"));
-	const FString FullPathXforms = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_xforms.bin"));
+	const FString FullPathParents = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_parents.bin"));
+	const FString FullPathXforms = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_xforms.bin"));
 
 	IFileHandle* FileHandle = PlatformFile.OpenRead(*FullPathParents);
 	if(FileHandle == nullptr)
@@ -196,7 +196,13 @@ void FAnimNode_PFNN::ApplyPFNN()
 		const int OVelocity = 8 + (((UTrajectoryComponent::LENGTH / 2) / 10) * 4) + JOINT_NUM * 3 * 1;
 		const int ORoation = 8 + (((UTrajectoryComponent::LENGTH / 2) / 10) * 4) + JOINT_NUM * 3 * 2;
 
-		const glm::vec3 Position = (RootRotation * glm::vec3(PFNN->Yp(OPosition + i * 3 + 0), PFNN->Yp(OPosition + i * 3 + 1), PFNN->Yp(OPosition + i * 3 + 2))) + RootPosition;
+		const auto tX = PFNN->Yp(OPosition + i * 3 + 0);
+		const auto tY = PFNN->Yp(OPosition + i * 3 + 1);
+		const auto tZ = PFNN->Yp(OPosition + i * 3 + 2);
+		const auto t = glm::vec3(tX, tY, tZ);
+		const auto ShiftPosition = RootRotation * t;
+
+		const glm::vec3 Position = ShiftPosition + RootPosition;
 		const glm::vec3 Velocity = (RootRotation * glm::vec3(PFNN->Yp(OVelocity + i * 3 + 0), PFNN->Yp(OVelocity + i * 3 + 1), PFNN->Yp(OVelocity + i * 3 + 2)));
 		const glm::vec3 Rotation = glm::vec3(PFNN->Yp(ORoation + i * 3 + 0), PFNN->Yp(ORoation + i * 3 + 1), PFNN->Yp(ORoation + i * 3 + 2));
 
