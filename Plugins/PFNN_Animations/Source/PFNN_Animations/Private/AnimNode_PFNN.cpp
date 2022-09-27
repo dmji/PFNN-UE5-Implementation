@@ -39,8 +39,8 @@ void FAnimNode_PFNN::LoadXForms()
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	const FString RelativePath = FPaths::ProjectDir();
-	const FString FullPathParents = RelativePath + FString::Printf(TEXT("Plugins/PFNNAnimation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_parents.bin"));
-	const FString FullPathXforms = RelativePath + FString::Printf(TEXT("Plugins/PFNNAnimation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_xforms.bin"));
+	const FString FullPathParents = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_parents.bin"));
+	const FString FullPathXforms = RelativePath + FString::Printf(TEXT("Plugins/PFNN_Animation/Content/MachineLearning/PhaseFunctionNeuralNetwork/character_xforms.bin"));
 
 	IFileHandle* FileHandle = PlatformFile.OpenRead(*FullPathParents);
 	if(FileHandle == nullptr)
