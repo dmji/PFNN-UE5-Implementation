@@ -133,8 +133,16 @@ void UPFNNDataContainer::GetNetworkData(UPhaseFunctionNeuralNetwork& arg_PFNN)
 	arg_PFNN.b0p = this->b0p; arg_PFNN.b1p = this->b1p; arg_PFNN.b2p = this->b2p;
 }
 
-void UPFNNDataContainer::LoadWeights(Eigen::ArrayXXf& arg_A, const int arg_Rows, const int arg_Cols,
-									 const FString arg_FileName, ...)
+static FFloat32 readItem(IFileHandle* FileHandle)
+{
+	FFloat32 item;
+	uint8* ByteBuffer = reinterpret_cast<uint8*>(&item);
+
+	FileHandle->Read(ByteBuffer, sizeof(FFloat32));
+	return item;
+}
+
+void UPFNNDataContainer::LoadWeights(Eigen::ArrayXXf& arg_A, const int arg_Rows, const int arg_Cols, const FString arg_FileName, ...)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -154,21 +162,16 @@ void UPFNNDataContainer::LoadWeights(Eigen::ArrayXXf& arg_A, const int arg_Rows,
 	{
 		for(int y = 0; y < arg_Cols; y++)
 		{
-			FFloat32 item;
-			uint8* ByteBuffer = reinterpret_cast<uint8*>(&item);
-
-			FileHandle->Read(ByteBuffer, sizeof(FFloat32));
+			FFloat32 item = readItem(FileHandle);
 			arg_A(x, y) = item.FloatValue;
 		}
 	}
 
 	delete FileHandle;
-
 }
 
 void UPFNNDataContainer::LoadWeights(Eigen::ArrayXf& arg_V, const int arg_Items, const FString arg_FileName, ...)
 {
-
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	FString RelativePath = FPaths::ProjectDir();
@@ -183,13 +186,9 @@ void UPFNNDataContainer::LoadWeights(Eigen::ArrayXf& arg_V, const int arg_Items,
 	}
 
 	arg_V = Eigen::ArrayXf(arg_Items);
-
 	for(int i = 0; i < arg_Items; i++)
 	{
-		FFloat32 item;
-		uint8* ByteBuffer = reinterpret_cast<uint8*>(&item);
-
-		FileHandle->Read(ByteBuffer, sizeof(FFloat32));
+		FFloat32 item = readItem(FileHandle);
 		arg_V(i) = item.FloatValue;
 	}
 
@@ -244,12 +243,10 @@ void PFNNWeigthLoader::DoWork()
 {
 	if(MatrixDelegate.IsBound())
 	{
-
 		return;
 	}
 	if(VectorDelegate.IsBound())
 	{
-
 		return;
 	}
 	UE_LOG(PFNN_Logging, Warning, TEXT("Attempting to Launch Weight loading thread without binding function delegates!"));

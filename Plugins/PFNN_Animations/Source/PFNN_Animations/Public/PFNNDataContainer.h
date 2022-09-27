@@ -74,10 +74,7 @@ private:
 	void LoadWeights(Eigen::ArrayXf& arg_V, const int arg_Items, const FString arg_FileName, ...);
 
 	//DO NOT CHANGE! These values determine the dimentions of the Neural Network. Changing them without knowing what you are doing will crash the engine.
-	enum
-	{
-		XDIM = 342, YDIM = 311, HDIM = 512
-	};
+	enum { XDIM = 342, YDIM = 311, HDIM = 512 };
 
 	Eigen::ArrayXf Xmean, Xstd;
 	Eigen::ArrayXf Ymean, Ystd;
@@ -93,7 +90,6 @@ private:
 
 	//Mutex for ensuring ThreadSafety of the DataContainer
 	FCriticalSection DataLocker;
-
 };
 
 class FPFNNDataLoader: public FNonAbandonableTask
