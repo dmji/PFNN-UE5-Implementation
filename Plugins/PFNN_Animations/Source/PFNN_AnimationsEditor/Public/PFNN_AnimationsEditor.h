@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(PFNN_AnimationModuleLog, All, All);
+
 class FPFNN_AnimationsEditorModule : public IModuleInterface
 {
 public:

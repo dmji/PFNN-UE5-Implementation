@@ -29,7 +29,8 @@ public class PFNN_Animations : ModuleRules
 				"CoreUObject", 
 				"Engine",
 				"AnimGraph", 
-				"BlueprintGraph"
+				"BlueprintGraph",
+                "DeveloperSettings"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
