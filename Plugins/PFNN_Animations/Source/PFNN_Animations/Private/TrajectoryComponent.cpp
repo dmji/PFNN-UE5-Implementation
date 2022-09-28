@@ -409,18 +409,25 @@ void UTrajectoryComponent::CalculateTargetDirection()
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%s TargetVelocity"), *FlippedTargetVelocity.ToString()));
 
 		FVector ActorLoc = GetOwner()->GetActorLocation();
+		const auto drawDebugArrow = [&](const auto& actor, const auto& appendix, const auto color)
+		{
+			const float lifeTime = -1.f;
+			const uint8 depthPrior = 0;
+			const float thickness = 2.f;
+			const bool bPersistentLine = false;
+			DrawDebugDirectionalArrow(GetWorld(), actor, actor + appendix, 0.0f, color, bPersistentLine, lifeTime, depthPrior, thickness);
+		};
 
 		FVector FrameInputActor = ActorLoc + FVector(0.0f, 0.0f, 200.0f);
+		drawDebugArrow(FrameInputActor, FlippedCurrentFrameInput * 100, FColor::White);
+
 		FVector TargetDirectionActor = ActorLoc + FVector(0.0f, 0.0f, 250.0f);
+		drawDebugArrow(TargetDirectionActor, FlippedTargetDirectionNew * 100.0f, FColor::Blue);
+		drawDebugArrow(TargetDirectionActor, FlippedTargetDirection * 100.0f, FColor::Green);
+
 		FVector TargetVelocityActor = ActorLoc + FVector(0.0f, 0.0f, 225.0f);
-
-		DrawDebugDirectionalArrow(GetWorld(), FrameInputActor, FrameInputActor + FlippedCurrentFrameInput * 100, 0.0f, FColor::White, false, -1, 0, 2);
-
-		DrawDebugDirectionalArrow(GetWorld(), TargetDirectionActor, TargetDirectionActor + FlippedTargetDirectionNew * 100.0f, 0.0f, FColor::Blue, false, -1, 0, 2);
-		DrawDebugDirectionalArrow(GetWorld(), TargetDirectionActor, TargetDirectionActor + FlippedTargetDirection * 100.0f, 0.0f, FColor::Green, false, -1, 0, 2);
-
-		DrawDebugDirectionalArrow(GetWorld(), TargetVelocityActor, TargetVelocityActor + FlippedTargetVelocityNew * 1000.0f, 0.0f, FColor::Red, false, -1, 0, 2);
-		DrawDebugDirectionalArrow(GetWorld(), TargetVelocityActor, TargetVelocityActor + FlippedTargetVelocity * 1000.0f, 0.0f, FColor::Yellow, false, -1, 0, 2);
+		drawDebugArrow(TargetVelocityActor, FlippedTargetVelocityNew * 1000.0f, FColor::Red);
+		drawDebugArrow(TargetVelocityActor, FlippedTargetVelocity * 1000.0f, FColor::Yellow);
 	}
 }
 

@@ -10,6 +10,7 @@
 #include "AnimNode_PFNN.generated.h"
 
 //Bone definitions
+/*
 enum
 {
 	//Root
@@ -55,6 +56,7 @@ enum
 	JOINT_INDEX_R = 29,
 	JOINT_THUMB_R = 30,
 };
+*/
 
 class UTrajectoryComponent;
 class UPhaseFunctionNeuralNetwork;
@@ -67,7 +69,7 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
-		FAnimNode_PFNN();
+	FAnimNode_PFNN();
 
 	void LoadData();
 	void LoadXForms();
@@ -113,10 +115,10 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 	};
 
 	UPROPERTY()
-		class UPFNNAnimInstance* PFNNAnimInstance;
+	class UPFNNAnimInstance* PFNNAnimInstance;
 
 	UPROPERTY()
-		UTrajectoryComponent* Trajectory = nullptr;
+	UTrajectoryComponent* Trajectory = nullptr;
 
 	//LOG THESE VARIABLES
 
@@ -132,7 +134,7 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 	int JointParents[JOINT_NUM];
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = PFNN)
-		float Phase;
+	float Phase;
 
 	TArray<FVector> FinalBoneLocations;
 	TArray<FQuat>	FinalBoneRotations;

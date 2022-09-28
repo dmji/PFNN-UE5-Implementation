@@ -1,7 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
-
 #include "AnimNode_PFNN.h"
 
 #include "PFNNAnimInstance.h"
@@ -24,8 +22,12 @@
 
 UPhaseFunctionNeuralNetwork* FAnimNode_PFNN::PFNN = nullptr;
 
-FAnimNode_PFNN::FAnimNode_PFNN() : PFNNAnimInstance(nullptr), Trajectory(nullptr), Phase(0), FrameCounter(0),
-bIsPFNNLoaded(false)
+FAnimNode_PFNN::FAnimNode_PFNN()
+	: PFNNAnimInstance(nullptr)
+	, Trajectory(nullptr)
+	, Phase(0)
+	, FrameCounter(0)
+	, bIsPFNNLoaded(false)
 {}
 
 void FAnimNode_PFNN::LoadData()
@@ -55,6 +57,7 @@ void FAnimNode_PFNN::LoadXForms()
 	{
 		JointParents[i] = static_cast<int>(JointParentsFloat[i]);
 	}
+	delete FileHandle;
 
 
 	FileHandle = PlatformFile.OpenRead(*FullPathXforms);
@@ -75,13 +78,10 @@ void FAnimNode_PFNN::LoadXForms()
 
 void FAnimNode_PFNN::LoadPFNN()
 {
-
 	if(!bIsPFNNLoaded && Trajectory)
 	{
 		if(PFNN == nullptr)
-		{
 			PFNN = NewObject<UPhaseFunctionNeuralNetwork>();
-		}
 		bIsPFNNLoaded = PFNN->LoadNetworkData(Trajectory->GetOwner());
 	}
 }
@@ -94,9 +94,9 @@ void FAnimNode_PFNN::ApplyPFNN()
 	glm::mat3 RootRotation = Trajectory->GetRootRotation();
 
 	//Input trajectiory positions and directions
+	const int w = UTrajectoryComponent::LENGTH / 10;
 	for(int i = 0; i < UTrajectoryComponent::LENGTH; i += 10)
 	{
-		int w = UTrajectoryComponent::LENGTH / 10;
 		const glm::vec3 Position = glm::inverse(RootRotation) * (Trajectory->Positions[i] - RootPosition);
 		const glm::vec3 Direction = glm::inverse(RootRotation) * Trajectory->Directions[i];
 		PFNN->Xp((w * 0) + i / 10) = Position.x;
@@ -108,7 +108,6 @@ void FAnimNode_PFNN::ApplyPFNN()
 	// Input trajectory gaits
 	for(int i = 0; i < UTrajectoryComponent::LENGTH; i += 10)
 	{
-		const int w = UTrajectoryComponent::LENGTH / 10;
 		PFNN->Xp((w * 4) + i / 10) = Trajectory->GaitStand[i];
 		PFNN->Xp((w * 5) + i / 10) = Trajectory->GaitWalk[i];
 		PFNN->Xp((w * 6) + i / 10) = Trajectory->GaitJog[i];
@@ -120,29 +119,26 @@ void FAnimNode_PFNN::ApplyPFNN()
 	//Input previous join position / velocity / rotations
 	const glm::vec3 PreviousRootPosition = Trajectory->GetPreviousRootPosition();
 	const glm::mat3 PreviousRootRotation = Trajectory->GetPreviousRootRotation();
-
+	const int oP = ((UTrajectoryComponent::LENGTH / 10) * 10);
 	for(int i = 0; i < JOINT_NUM; i++)
 	{
-		const int o = ((UTrajectoryComponent::LENGTH / 10) * 10);
 		const glm::vec3 Position = glm::inverse(PreviousRootRotation) * (JointPosition[i] - PreviousRootPosition);
 		const glm::vec3 Previous = glm::inverse(PreviousRootRotation) * JointVelocitys[i];
 		//Magical numbers are indexes for the PFNN
-		PFNN->Xp(o + (JOINT_NUM * 3 * 0) + i * 3 + 0) = Position.x;
-		PFNN->Xp(o + (JOINT_NUM * 3 * 0) + i * 3 + 1) = Position.y;
-		PFNN->Xp(o + (JOINT_NUM * 3 * 0) + i * 3 + 2) = Position.z;
-		PFNN->Xp(o + (JOINT_NUM * 3 * 1) + i * 3 + 0) = Previous.x;
-		PFNN->Xp(o + (JOINT_NUM * 3 * 1) + i * 3 + 1) = Previous.y;
-		PFNN->Xp(o + (JOINT_NUM * 3 * 1) + i * 3 + 2) = Previous.z;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 0) + i * 3 + 0) = Position.x;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 0) + i * 3 + 1) = Position.y;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 0) + i * 3 + 2) = Position.z;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 1) + i * 3 + 0) = Previous.x;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 1) + i * 3 + 1) = Previous.y;
+		PFNN->Xp(oP + (JOINT_NUM * 3 * 1) + i * 3 + 2) = Previous.z;
 	}
 
 	//Input heights for the trajectory
+	const float DistanceOffsetHeight = 100.f;
+	const float DistanceOffsetFloor = 450.f;
+	const int oJ = (((UTrajectoryComponent::LENGTH) / 10) * 10) + JOINT_NUM * 3 * 2;
 	for(int i = 0; i < UTrajectoryComponent::LENGTH; i += 10)
 	{
-		const int o = (((UTrajectoryComponent::LENGTH) / 10) * 10) + JOINT_NUM * 3 * 2;
-		const int w = UTrajectoryComponent::LENGTH / 10;
-
-		const float DistanceOffsetHeight = 100.f;
-		const float DistanceOffsetFloor = 450.f;
 		FCollisionQueryParams CollisionParams = FCollisionQueryParams(FName(TEXT("GroundGeometryTrace")), true, Trajectory->GetOwner());
 		CollisionParams.AddIgnoredActor(Trajectory->GetOwner());
 
@@ -182,20 +178,20 @@ void FAnimNode_PFNN::ApplyPFNN()
 		//DrawDebugLine(Trajectory->GetOwner()->GetWorld(), ULeftStartPoint, ULeftEndPoint, FColor::Red, false, 0.01f, 0, 1);
 		//DrawDebugLine(Trajectory->GetOwner()->GetWorld(), URightStartPoint, URightEndPoint, FColor::Red, false, 0.01f, 0, 1);
 
-		PFNN->Xp(o + (w * 0) + (i / 10)) = LeftResultLocation.y * 0.01f;
-		PFNN->Xp(o + (w * 1) + (i / 10)) = Trajectory->Positions[i].y * 0.01f;
-		PFNN->Xp(o + (w * 2) + (i / 10)) = RightResultLocation.y * 0.01f;
+		PFNN->Xp(oJ + (w * 0) + (i / 10)) = LeftResultLocation.y * 0.01f;
+		PFNN->Xp(oJ + (w * 1) + (i / 10)) = Trajectory->Positions[i].y * 0.01f;
+		PFNN->Xp(oJ + (w * 2) + (i / 10)) = RightResultLocation.y * 0.01f;
 	}
 
 	PFNN->Predict(Phase);
 
 	//Build local transformation for the joints
+	const int halfLength = UTrajectoryComponent::LENGTH / 2;
+	const int OPosition = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 0;
+	const int OVelocity = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 1;
+	const int ORoation = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 2;
 	for(int i = 0; i < JOINT_NUM; i++)
 	{
-		const int OPosition = 8 + (((UTrajectoryComponent::LENGTH / 2) / 10) * 4) + JOINT_NUM * 3 * 0;
-		const int OVelocity = 8 + (((UTrajectoryComponent::LENGTH / 2) / 10) * 4) + JOINT_NUM * 3 * 1;
-		const int ORoation = 8 + (((UTrajectoryComponent::LENGTH / 2) / 10) * 4) + JOINT_NUM * 3 * 2;
-
 		const auto tX = PFNN->Yp(OPosition + i * 3 + 0);
 		const auto tY = PFNN->Yp(OPosition + i * 3 + 1);
 		const auto tZ = PFNN->Yp(OPosition + i * 3 + 2);
@@ -209,8 +205,8 @@ void FAnimNode_PFNN::ApplyPFNN()
 		JointPosition[i] = glm::mix(JointPosition[i] + Velocity, Position, Trajectory->ExtraJointSmooth);
 		JointVelocitys[i] = Velocity;
 		JointRotations[i] = Rotation;
-
 	}
+
 	//Forward kinematics
 	for(int i = 0; i < JOINT_NUM; i++)
 	{
@@ -228,35 +224,35 @@ void FAnimNode_PFNN::ApplyPFNN()
 
 	Trajectory->UpdatePastTrajectory();
 
-	Trajectory->Positions[UTrajectoryComponent::LENGTH / 2] = RootPosition;
+	Trajectory->Positions[halfLength] = RootPosition;
 
 	//Update current trajectory
-	float StandAmount = powf(1.0f - Trajectory->GaitStand[UTrajectoryComponent::LENGTH / 2], 0.25f);
+	float StandAmount = powf(1.0f - Trajectory->GaitStand[halfLength], 0.25f);
 
-	const glm::vec3 TrajectoryUpdate = Trajectory->Rotations[UTrajectoryComponent::LENGTH / 2] * glm::vec3(PFNN->Yp(0), 0, PFNN->Yp(1)); //TODEBUG: Rot
-	Trajectory->Positions[UTrajectoryComponent::LENGTH / 2] = Trajectory->Positions[UTrajectoryComponent::LENGTH / 2];// + StandAmount * TrajectoryUpdate;
-	Trajectory->Directions[UTrajectoryComponent::LENGTH / 2] = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(Trajectory->GetOwner()->GetActorForwardVector().X, Trajectory->GetOwner()->GetActorForwardVector().Y, 0.0f));
-	Trajectory->Directions[UTrajectoryComponent::LENGTH / 2] = glm::mat3(glm::rotate(StandAmount * -PFNN->Yp(2), glm::vec3(0, 1, 0))) * Trajectory->Directions[UTrajectoryComponent::LENGTH / 2]; //TODEBUG: Rot
-	Trajectory->Rotations[UTrajectoryComponent::LENGTH / 2] = glm::mat3(glm::rotate(atan2f(
-		Trajectory->Directions[UTrajectoryComponent::LENGTH / 2].x,
-		Trajectory->Directions[UTrajectoryComponent::LENGTH / 2].z), glm::vec3(0, 1, 0)));
+	const glm::vec3 TrajectoryUpdate = Trajectory->Rotations[halfLength] * glm::vec3(PFNN->Yp(0), 0, PFNN->Yp(1)); //TODEBUG: Rot
+	Trajectory->Positions[halfLength] = Trajectory->Positions[halfLength];// + StandAmount * TrajectoryUpdate;
+	Trajectory->Directions[halfLength] = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(Trajectory->GetOwner()->GetActorForwardVector().X, Trajectory->GetOwner()->GetActorForwardVector().Y, 0.0f));
+	Trajectory->Directions[halfLength] = glm::mat3(glm::rotate(StandAmount * -PFNN->Yp(2), glm::vec3(0, 1, 0))) * Trajectory->Directions[halfLength]; //TODEBUG: Rot
+	Trajectory->Rotations[halfLength] = glm::mat3(glm::rotate(atan2f(
+		Trajectory->Directions[halfLength].x,
+		Trajectory->Directions[halfLength].z), glm::vec3(0, 1, 0)));
 
 	//TODO: Add wall logic
 
 	//Update future trajectory
-	int FirstFutureNode = UTrajectoryComponent::LENGTH / 2 + 1;
+	const int W = (halfLength) / 10;
+	int FirstFutureNode = halfLength + 1;
 	for(int i = FirstFutureNode; i < UTrajectoryComponent::LENGTH; i++)
 	{
-		const int W = (UTrajectoryComponent::LENGTH / 2) / 10;
-		const float M = fmod((static_cast<float>(i) - (UTrajectoryComponent::LENGTH / 2)) / 10.0, 1.0);
+		const float M = fmod((static_cast<float>(i) - (halfLength)) / 10.0, 1.0);
 
 		Trajectory->Positions[i].x = (1 - M) * PFNN->Yp(8 + (W * 0) + (i / 10) - W) + M * PFNN->Yp(8 + (W * 0) + (i / 10) - W + 1);
 		Trajectory->Positions[i].z = (1 - M) * PFNN->Yp(8 + (W * 1) + (i / 10) - W) + M * PFNN->Yp(8 + (W * 1) + (i / 10) - W + 1);
 		Trajectory->Directions[i].x = (1 - M) * PFNN->Yp(8 + (W * 2) + (i / 10) - W) + M * PFNN->Yp(8 + (W * 2) + (i / 10) - W + 1);
 		Trajectory->Directions[i].z = (1 - M) * PFNN->Yp(8 + (W * 3) + (i / 10) - W) + M * PFNN->Yp(8 + (W * 3) + (i / 10) - W + 1);
 
-		Trajectory->Positions[i] = (Trajectory->Rotations[UTrajectoryComponent::LENGTH / 2] * Trajectory->Positions[i]) + Trajectory->Positions[UTrajectoryComponent::LENGTH / 2];
-		Trajectory->Directions[i] = (Trajectory->Rotations[UTrajectoryComponent::LENGTH / 2]) * Trajectory->Directions[i];
+		Trajectory->Positions[i] = (Trajectory->Rotations[halfLength] * Trajectory->Positions[i]) + Trajectory->Positions[halfLength];
+		Trajectory->Directions[i] = (Trajectory->Rotations[halfLength]) * Trajectory->Directions[i];
 		Trajectory->Rotations[i] = glm::mat3(glm::rotate(atan2f(Trajectory->Directions[i].x, Trajectory->Directions[i].z), glm::vec3(0, 1, 0)));
 	}
 
@@ -265,8 +261,6 @@ void FAnimNode_PFNN::ApplyPFNN()
 
 	FinalBoneLocations.SetNum(JOINT_NUM);
 	FinalBoneRotations.SetNum(JOINT_NUM);
-	const float FinalScale = 1.0f;
-
 	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
 		FinalBoneLocations[i] = UPFNNHelperFunctions::XYZTranslationToXZY(JointPosition[i]);
@@ -287,39 +281,37 @@ void FAnimNode_PFNN::ApplyPFNN()
 	}
 
 	VisualizePhase();
-
 }
 
 glm::quat FAnimNode_PFNN::QuaternionExpression(const glm::vec3 arg_Vector)
 {
 	float W = glm::length(arg_Vector);
 
-	const glm::quat Quat = W < 0.01 ? glm::quat(1.0f, 0.0f, 0.0f, 0.0f) : glm::quat(
-		cosf(W),
-		arg_Vector.x * (sinf(W) / W),
-		arg_Vector.y * (sinf(W) / W),
-		arg_Vector.z * (sinf(W) / W));
-
-	return Quat / sqrtf(Quat.w * Quat.w + Quat.x * Quat.x + Quat.y * Quat.y + Quat.z * Quat.z);
+	const glm::quat Quat = W < 0.01 ?
+		glm::quat(1.0f, 0.0f, 0.0f, 0.0f) :
+		glm::quat(
+			cosf(W),
+			arg_Vector.x * (sinf(W) / W),
+			arg_Vector.y * (sinf(W) / W),
+			arg_Vector.z * (sinf(W) / W)
+		);
+	auto t = glm::normalize(Quat);
+	auto r = Quat / sqrtf(powf(Quat.w, 2) + powf(Quat.x, 2) + powf(Quat.y, 2) + powf(Quat.z, 2));
+	assert(t == r);
+	return r;
 }
 
 UPFNNAnimInstance* FAnimNode_PFNN::GetPFNNInstanceFromContext(const FAnimationInitializeContext& arg_Context)
 {
-	FAnimInstanceProxy* AnimProxy = arg_Context.AnimInstanceProxy;
-	if(AnimProxy)
-	{
+	if(FAnimInstanceProxy* AnimProxy = arg_Context.AnimInstanceProxy)
 		return Cast<UPFNNAnimInstance>(AnimProxy->GetAnimInstanceObject());
-	}
 	return nullptr;
 }
 
 UPFNNAnimInstance* FAnimNode_PFNN::GetPFNNInstanceFromContext(const FAnimationUpdateContext& arg_Context)
 {
-	FAnimInstanceProxy* AnimProxy = arg_Context.AnimInstanceProxy;
-	if(AnimProxy)
-	{
+	if(FAnimInstanceProxy* AnimProxy = arg_Context.AnimInstanceProxy)
 		return Cast<UPFNNAnimInstance>(AnimProxy->GetAnimInstanceObject());
-	}
 	return nullptr;
 }
 
@@ -329,9 +321,7 @@ void FAnimNode_PFNN::Initialize_AnyThread(const FAnimationInitializeContext& arg
 
 	PFNNAnimInstance = GetPFNNInstanceFromContext(arg_Context);
 	if(!PFNNAnimInstance)
-	{
 		UE_LOG(LogTemp, Error, TEXT("PFNN Animation node should only be added to a PFNNAnimInstance child class!"));
-	}
 }
 
 void FAnimNode_PFNN::Update_AnyThread(const FAnimationUpdateContext& arg_Context)
@@ -339,70 +329,62 @@ void FAnimNode_PFNN::Update_AnyThread(const FAnimationUpdateContext& arg_Context
 	FAnimNode_Base::Update_AnyThread(arg_Context);
 
 	if(!bIsPFNNLoaded)
-	{
 		LoadData();
-	}
 
 	if(PFNNAnimInstance)
-	{
 		Trajectory = PFNNAnimInstance->GetOwningTrajectoryComponent();
-	}
 
 	if(Trajectory != nullptr && bIsPFNNLoaded)
 		ApplyPFNN();
-
-
 }
 
 void FAnimNode_PFNN::Evaluate_AnyThread(FPoseContext& arg_Output)
 {
-	if(bIsPFNNLoaded)
+	if(!bIsPFNNLoaded)
+		return;
+
+	const FTransform& CharacterTransform = arg_Output.AnimInstanceProxy->GetActorTransform();
+	if(FinalBoneLocations.Num() < JOINT_NUM || FinalBoneRotations.Num() < JOINT_NUM)
 	{
-		const FTransform& CharacterTransform = arg_Output.AnimInstanceProxy->GetActorTransform();
-		if(FinalBoneLocations.Num() >= JOINT_NUM && FinalBoneRotations.Num() >= JOINT_NUM)
+		UE_LOG(PFNN_Logging, Error, TEXT("PFNN results were not properly applied!"));
+		return;
+	}
+
+	const auto Bones = arg_Output.Pose.GetBoneContainer();
+	for(int32 i = 0; i < JOINT_NUM; i++)
+	{
+		const FCompactPoseBoneIndex CurrentBoneIndex(i);
+		const FCompactPoseBoneIndex ParentBoneIndex(Bones.GetParentBoneIndex(CurrentBoneIndex));
+
+		if(ParentBoneIndex.GetInt() == -1)
 		{
-			auto Bones = arg_Output.Pose.GetBoneContainer();
+			//Do nothing first UE4 root bone skips
+			arg_Output.Pose[CurrentBoneIndex].SetRotation(FQuat::MakeFromEuler(FVector::DegreesToRadians(FVector(90.0f, 0.0f, 0.0f))));
+		}
+		else if(ParentBoneIndex.GetInt() == 0)
+		{
+			//Root Bone No conversion needed
+			arg_Output.Pose[CurrentBoneIndex].SetRotation(FinalBoneRotations[CurrentBoneIndex.GetInt() - 1]);
+			arg_Output.Pose[CurrentBoneIndex].SetLocation(FinalBoneLocations[CurrentBoneIndex.GetInt() - 1]);
 
-			for(int32 i = 0; i < JOINT_NUM; i++)
-			{
-				const FCompactPoseBoneIndex CurrentBoneIndex(i);
-				const FCompactPoseBoneIndex ParentBoneIndex(Bones.GetParentBoneIndex(CurrentBoneIndex));
-
-				if(ParentBoneIndex.GetInt() == -1)
-				{
-					//Do nothing first UE4 root bone skips
-					arg_Output.Pose[CurrentBoneIndex].SetRotation(FQuat::MakeFromEuler(FVector::DegreesToRadians(FVector(90.0f, 0.0f, 0.0f))));
-				}
-				else if(ParentBoneIndex.GetInt() == 0)
-				{
-					//Root Bone No conversion needed
-					arg_Output.Pose[CurrentBoneIndex].SetRotation(FinalBoneRotations[CurrentBoneIndex.GetInt() - 1]);
-					arg_Output.Pose[CurrentBoneIndex].SetLocation(FinalBoneLocations[CurrentBoneIndex.GetInt() - 1]);
-
-				}
-				else
-				{	//Conversion to LocalSpace (hopefully)
-					FTransform CurrentBoneTransform = FTransform(FinalBoneRotations[CurrentBoneIndex.GetInt() - 1], FinalBoneLocations[CurrentBoneIndex.GetInt() - 1], FVector::OneVector);
-					FTransform ParentBoneTransform = FTransform(FinalBoneRotations[ParentBoneIndex.GetInt() - 1], FinalBoneLocations[ParentBoneIndex.GetInt() - 1], FVector::OneVector);
-
-					FTransform LocalBoneTransform = CurrentBoneTransform.GetRelativeTransform(ParentBoneTransform);
-
-					arg_Output.Pose[CurrentBoneIndex].SetComponents(LocalBoneTransform.GetRotation(), LocalBoneTransform.GetLocation(), LocalBoneTransform.GetScale3D());
-					//arg_Output.Pose[CurrentBoneIndex].SetRotation(LocalBoneTransform.GetRotation());
-					LocalBoneTransform.SetLocation(LocalBoneTransform.GetRotation().Inverse() * LocalBoneTransform.GetLocation());
-				}
-			}
-			arg_Output.Pose.NormalizeRotations();
-#ifdef WITH_EDITOR
-			DrawDebugSkeleton(arg_Output);
-			DrawDebugBoneVelocity(arg_Output);
-#endif
 		}
 		else
-		{
-			UE_LOG(PFNN_Logging, Error, TEXT("PFNN results were not properly applied!"));
+		{	//Conversion to LocalSpace (hopefully)
+			FTransform CurrentBoneTransform = FTransform(FinalBoneRotations[CurrentBoneIndex.GetInt() - 1], FinalBoneLocations[CurrentBoneIndex.GetInt() - 1], FVector::OneVector);
+			FTransform ParentBoneTransform = FTransform(FinalBoneRotations[ParentBoneIndex.GetInt() - 1], FinalBoneLocations[ParentBoneIndex.GetInt() - 1], FVector::OneVector);
+
+			FTransform LocalBoneTransform = CurrentBoneTransform.GetRelativeTransform(ParentBoneTransform);
+
+			arg_Output.Pose[CurrentBoneIndex].SetComponents(LocalBoneTransform.GetRotation(), LocalBoneTransform.GetLocation(), LocalBoneTransform.GetScale3D());
+			//arg_Output.Pose[CurrentBoneIndex].SetRotation(LocalBoneTransform.GetRotation());
+			LocalBoneTransform.SetLocation(LocalBoneTransform.GetRotation().Inverse() * LocalBoneTransform.GetLocation());
 		}
 	}
+	arg_Output.Pose.NormalizeRotations();
+#ifdef WITH_EDITOR
+	DrawDebugSkeleton(arg_Output);
+	DrawDebugBoneVelocity(arg_Output);
+#endif
 }
 
 void FAnimNode_PFNN::LogNetworkData(int arg_FrameCounter)
@@ -411,69 +393,62 @@ void FAnimNode_PFNN::LogNetworkData(int arg_FrameCounter)
 	{
 		std::fstream fs;
 		fs.open("UE4_Network.log", std::ios::out);
-
-		if(fs.is_open())
-		{
-			fs << "UE4_Network" << std::endl;
-			fs << "Network Frame[" << arg_FrameCounter << "]" << std::endl << std::endl;
-
-			fs << "Current Phase: " << Phase << std::endl << std::endl;
-
-			fs << "Joints" << std::endl;
-			for(size_t i = 0; i < JOINT_NUM; i++)
-			{
-				fs << "Joint[" << i << "]" << std::endl;
-				fs << "	JointPosition: " << JointPosition[i].x << "X, " << JointPosition[i].y << "Y, " << JointPosition[i].z << "Z" << std::endl;
-				fs << "	JointVelocitys: " << JointVelocitys[i].x << "X, " << JointVelocitys[i].y << "Y, " << JointVelocitys[i].z << "Z" << std::endl;
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					//fs << "	JointRotations:  " << JointRotations[i][x].x << "X, " << JointRotations[i][x].y << ", " << JointRotations[i][x].z << std::endl;
-				}
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					fs << "	JointAnimXform:  " << JointAnimXform[i][x].x << "X, " << JointAnimXform[i][x].y << ", " << JointAnimXform[i][x].z << std::endl;
-				}
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					fs << "	JointRestXform:  " << JointRestXform[i][x].x << "X, " << JointRestXform[i][x].y << ", " << JointRestXform[i][x].z << std::endl;
-				}
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					fs << "	JointMeshXform:  " << JointMeshXform[i][x].x << "X, " << JointMeshXform[i][x].y << ", " << JointMeshXform[i][x].z << std::endl;
-				}
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					fs << "	JointGlobalRestXform:  " << JointGlobalRestXform[i][x].x << "X, " << JointGlobalRestXform[i][x].y << ", " << JointGlobalRestXform[i][x].z << std::endl;
-				}
-
-				for(size_t x = 0; x < 3; x++)
-				{
-					fs << "	JointGlobalAnimXform:  " << JointGlobalAnimXform[i][x].x << "X, " << JointGlobalAnimXform[i][x].y << ", " << JointGlobalAnimXform[i][x].z << std::endl;
-				}
-
-				fs << "JoinParents: " << JointParents[i] << std::endl;
-			}
-			fs << "End Joints" << std::endl << std::endl;
-
-			fs << "FinalLocations" << std::endl;
-			for(size_t i = 0; i < FinalBoneLocations.Num(); i++)
-			{
-				fs << "Bone[" << i << "]" << std::endl;
-				fs << "	FinalBoneLocation: " << FinalBoneLocations[i].X << "X, " << FinalBoneLocations[i].Y << "Y, " << FinalBoneLocations[i].Z << "Z" << std::endl;
-				fs << "	FinalBoneRotation: " << FinalBoneRotations[i].X << "X, " << FinalBoneRotations[i].Y << "Y, " << FinalBoneRotations[i].Z << "Z, " << FinalBoneRotations[i].W << "W" << std::endl;
-			}
-			fs << "End FinalLocations" << std::endl;
-
-		}
-		else
-		{
+		if(!fs.is_open())
 			throw std::exception();
+
+		fs << "UE4_Network" << std::endl;
+		fs << "Network Frame[" << arg_FrameCounter << "]" << std::endl << std::endl;
+
+		fs << "Current Phase: " << Phase << std::endl << std::endl;
+		fs << "Joints" << std::endl;
+		for(size_t i = 0; i < JOINT_NUM; i++)
+		{
+			fs << "Joint[" << i << "]" << std::endl;
+			fs << "	JointPosition: " << JointPosition[i].x << "X, " << JointPosition[i].y << "Y, " << JointPosition[i].z << "Z" << std::endl;
+			fs << "	JointVelocitys: " << JointVelocitys[i].x << "X, " << JointVelocitys[i].y << "Y, " << JointVelocitys[i].z << "Z" << std::endl;
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				//fs << "	JointRotations:  " << JointRotations[i][x].x << "X, " << JointRotations[i][x].y << ", " << JointRotations[i][x].z << std::endl;
+			}
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				fs << "	JointAnimXform:  " << JointAnimXform[i][x].x << "X, " << JointAnimXform[i][x].y << ", " << JointAnimXform[i][x].z << std::endl;
+			}
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				fs << "	JointRestXform:  " << JointRestXform[i][x].x << "X, " << JointRestXform[i][x].y << ", " << JointRestXform[i][x].z << std::endl;
+			}
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				fs << "	JointMeshXform:  " << JointMeshXform[i][x].x << "X, " << JointMeshXform[i][x].y << ", " << JointMeshXform[i][x].z << std::endl;
+			}
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				fs << "	JointGlobalRestXform:  " << JointGlobalRestXform[i][x].x << "X, " << JointGlobalRestXform[i][x].y << ", " << JointGlobalRestXform[i][x].z << std::endl;
+			}
+
+			for(size_t x = 0; x < 3; x++)
+			{
+				fs << "	JointGlobalAnimXform:  " << JointGlobalAnimXform[i][x].x << "X, " << JointGlobalAnimXform[i][x].y << ", " << JointGlobalAnimXform[i][x].z << std::endl;
+			}
+
+			fs << "JoinParents: " << JointParents[i] << std::endl;
 		}
+		fs << "End Joints" << std::endl << std::endl;
+
+		fs << "FinalLocations" << std::endl;
+		for(size_t i = 0; i < FinalBoneLocations.Num(); i++)
+		{
+			fs << "Bone[" << i << "]" << std::endl;
+			fs << "	FinalBoneLocation: " << FinalBoneLocations[i].X << "X, " << FinalBoneLocations[i].Y << "Y, " << FinalBoneLocations[i].Z << "Z" << std::endl;
+			fs << "	FinalBoneRotation: " << FinalBoneRotations[i].X << "X, " << FinalBoneRotations[i].Y << "Y, " << FinalBoneRotations[i].Z << "Z, " << FinalBoneRotations[i].W << "W" << std::endl;
+		}
+		fs << "End FinalLocations" << std::endl;
 	}
 	catch(std::exception e)
 	{
@@ -481,58 +456,54 @@ void FAnimNode_PFNN::LogNetworkData(int arg_FrameCounter)
 		UE_LOG(LogTemp, Log, TEXT("Failed to log network data"));
 #endif
 	}
-
 }
 
 void FAnimNode_PFNN::DrawDebugSkeleton(const FPoseContext& arg_Context)
 {
 	APFNNCharacter* Character = Cast<APFNNCharacter>(Trajectory->GetOwner());
-	if(Character)
+	if(!Character || Character->HasDebuggingEnabled())
+		return;
+
+	const FTransform& CharacterTransform = arg_Context.AnimInstanceProxy->GetActorTransform();
+	FBoneContainer Bones = arg_Context.Pose.GetBoneContainer();
+
+	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
-		if(Character->HasDebuggingEnabled())
+		const FCompactPoseBoneIndex CurrentBoneIndex(i);
+		FCompactPoseBoneIndex ParentBoneIndex(Bones.GetParentBoneIndex(CurrentBoneIndex));
+
+		FVector CurrentBoneLocation = arg_Context.Pose[CurrentBoneIndex].GetLocation();
+		FVector ParentBoneLocation = CurrentBoneLocation;
+		if(ParentBoneIndex.GetInt() != -1)
 		{
-			const FTransform& CharacterTransform = arg_Context.AnimInstanceProxy->GetActorTransform();
-			FBoneContainer Bones = arg_Context.Pose.GetBoneContainer();
+			ParentBoneLocation = arg_Context.Pose[ParentBoneIndex].GetLocation();
+		}
 
-			for(int32 i = 0; i < JOINT_NUM; i++)
+		while(ParentBoneIndex.GetInt() != -1)
+		{
+			CurrentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
+			ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
+		}
+
+		ParentBoneIndex = Bones.GetParentBoneIndex(CurrentBoneIndex);
+		if(ParentBoneIndex.GetInt() != -1)
+		{
+			ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
+
+			while(ParentBoneIndex.GetInt() != -1)
 			{
-				const FCompactPoseBoneIndex CurrentBoneIndex(i);
-				FCompactPoseBoneIndex ParentBoneIndex(Bones.GetParentBoneIndex(CurrentBoneIndex));
-
-				FVector CurrentBoneLocation = arg_Context.Pose[CurrentBoneIndex].GetLocation();
-				FVector ParentBoneLocation = CurrentBoneLocation;
-				if(ParentBoneIndex.GetInt() != -1)
-				{
-					ParentBoneLocation = arg_Context.Pose[ParentBoneIndex].GetLocation();
-				}
-
-				while(ParentBoneIndex.GetInt() != -1)
-				{
-					CurrentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
-					ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-				}
-
-				ParentBoneIndex = Bones.GetParentBoneIndex(CurrentBoneIndex);
-				if(ParentBoneIndex.GetInt() != -1)
-				{
-					ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-
-					while(ParentBoneIndex.GetInt() != -1)
-					{
-						ParentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
-						ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-					}
-				}
-
-				FRotator BoneRotator = FRotator(FinalBoneRotations[i]);
-				arg_Context.AnimInstanceProxy->AnimDrawDebugCoordinateSystem(CurrentBoneLocation + CharacterTransform.GetLocation(), BoneRotator, 10.0f, false, -1.0f, 0.2);
-				arg_Context.AnimInstanceProxy->AnimDrawDebugSphere(CurrentBoneLocation + CharacterTransform.GetLocation(), 2.5f, 12, FColor::Green, false, -1.0f);
-				arg_Context.AnimInstanceProxy->AnimDrawDebugLine(CurrentBoneLocation + CharacterTransform.GetLocation(), ParentBoneLocation + CharacterTransform.GetLocation(), FColor::White, false, -1, 2.0f);
-
-				if(Trajectory->GetOwner()->GetWorld() != nullptr)
-					DrawDebugString(Trajectory->GetOwner()->GetWorld(), CurrentBoneLocation + CharacterTransform.GetLocation(), FString::FromInt(i), static_cast<AActor*>(0), FColor::Red, 0.01f, false, 2.0f);
+				ParentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
+				ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
 			}
 		}
+
+		FRotator BoneRotator = FRotator(FinalBoneRotations[i]);
+		arg_Context.AnimInstanceProxy->AnimDrawDebugCoordinateSystem(CurrentBoneLocation + CharacterTransform.GetLocation(), BoneRotator, 10.0f, false, -1.0f, 0.2);
+		arg_Context.AnimInstanceProxy->AnimDrawDebugSphere(CurrentBoneLocation + CharacterTransform.GetLocation(), 2.5f, 12, FColor::Green, false, -1.0f);
+		arg_Context.AnimInstanceProxy->AnimDrawDebugLine(CurrentBoneLocation + CharacterTransform.GetLocation(), ParentBoneLocation + CharacterTransform.GetLocation(), FColor::White, false, -1, 2.0f);
+
+		if(Trajectory->GetOwner()->GetWorld() != nullptr)
+			DrawDebugString(Trajectory->GetOwner()->GetWorld(), CurrentBoneLocation + CharacterTransform.GetLocation(), FString::FromInt(i), static_cast<AActor*>(0), FColor::Red, 0.01f, false, 2.0f);
 	}
 }
 
@@ -542,25 +513,14 @@ void FAnimNode_PFNN::DrawDebugBoneVelocity(const FPoseContext& arg_Context)
 		return;
 
 	APFNNCharacter* Character = Cast<APFNNCharacter>(Trajectory->GetOwner());
-	if(Character)
+	if(!Character || Character->HasDebuggingEnabled())
+		return;
+
+	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
-		if(Character->HasDebuggingEnabled())
-		{
-			for(int32 i = 0; i < JOINT_NUM; i++)
-			{
-				auto JointPos = FVector(JointPosition[i].x, JointPosition[i].z, JointPosition[i].y);
-
-				arg_Context.AnimInstanceProxy->AnimDrawDebugLine(
-					JointPos,
-					JointPos - 10 * FVector(JointVelocitys[i].x, JointVelocitys[i].z, JointVelocitys[i].y),
-					FColor::Yellow,
-					false,
-					-1,
-					0.5f
-				);
-
-			}
-		}
+		const auto JointPos = FVector(JointPosition[i].x, JointPosition[i].z, JointPosition[i].y);
+		const auto JointVelocity = FVector(JointVelocitys[i].x, JointVelocitys[i].z, JointVelocitys[i].y);
+		arg_Context.AnimInstanceProxy->AnimDrawDebugLine(JointPos, JointPos - 10 * JointVelocity, FColor::Yellow, false, -1, 0.5f);
 	}
 }
 

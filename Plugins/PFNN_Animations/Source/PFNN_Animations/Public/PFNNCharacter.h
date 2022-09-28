@@ -7,6 +7,8 @@
 #include "TrajectoryComponent.h"
 #include "PFNNCharacter.generated.h"
 
+class UTrajectoryComponent;
+
 UCLASS()
 class PFNN_ANIMATIONS_API APFNNCharacter : public ACharacter
 {
