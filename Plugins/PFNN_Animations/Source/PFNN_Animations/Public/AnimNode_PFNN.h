@@ -69,6 +69,30 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
+	// FAnimNode_Base interface
+	/**
+	 * Default AnimNode function to initialize bones
+	 * @param[in] Context, Bone context
+	 */
+		virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	/**
+	 * Default AnimNode function to cache bones
+	 * @param[in] Context, Bone context
+	 */
+	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& arg_Context) override
+	{}
+	/**
+	* Default AnimNode function to update bones
+	* @param[in] Context, Animation context
+	*/
+	virtual void Update_AnyThread(const FAnimationUpdateContext& arg_Context) override;
+	/**
+	* Default AnimNode function to evaluate bones
+	* @param[in] Context, Bone context
+	*/
+	virtual void Evaluate_AnyThread(FPoseContext& arg_Output) override;
+	// End of FAnimNode_Base interface
+
 	FAnimNode_PFNN();
 
 	void LoadData();
@@ -81,38 +105,20 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 	class UPFNNAnimInstance* GetPFNNInstanceFromContext(const FAnimationInitializeContext& Context);
 	class UPFNNAnimInstance* GetPFNNInstanceFromContext(const FAnimationUpdateContext& Context);
 
-	// FAnimNode_Base interface
-	/**
-	 * Default AnimNode function to initialize bones
-	 * @param[in] Context, Bone context
-	 */
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) 	override;
-	/**
-	 * Default AnimNode function to cache bones
-	 * @param[in] Context, Bone context
-	 */
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& arg_Context)	override
-	{}
-	/**
-	* Default AnimNode function to update bones
-	* @param[in] Context, Animation context
-	*/
-	virtual void Update_AnyThread(const FAnimationUpdateContext& arg_Context) 			override;
-	/**
-	* Default AnimNode function to evaluate bones
-	* @param[in] Context, Bone context
-	*/
-	virtual void Evaluate_AnyThread(FPoseContext& arg_Output) 							override;
-	// End of FAnimNode_Base interface
-
 	void LogNetworkData(int arg_FrameCounter);
 
+private:
+	void DrawDebugSkeleton(const FPoseContext& arg_Context);
+	void DrawDebugBoneVelocity(const FPoseContext& arg_Context);
+	void VisualizePhase();
+
+public:
+	static UPhaseFunctionNeuralNetwork* PFNN;
+	bool bIsPFNNLoaded;
+	int FrameCounter;
 
 	//Amount of joints
-	enum
-	{
-		JOINT_NUM = 31
-	};
+	enum { JOINT_NUM = 31 };
 
 	UPROPERTY()
 	class UPFNNAnimInstance* PFNNAnimInstance;
@@ -121,7 +127,6 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 	UTrajectoryComponent* Trajectory = nullptr;
 
 	//LOG THESE VARIABLES
-
 	glm::vec3 JointPosition[JOINT_NUM];
 	glm::vec3 JointVelocitys[JOINT_NUM];
 	glm::vec3 JointRotations[JOINT_NUM];
@@ -138,18 +143,5 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 
 	TArray<FVector> FinalBoneLocations;
 	TArray<FQuat>	FinalBoneRotations;
-
 	//END LOG THESE VARIABLES
-
-	static UPhaseFunctionNeuralNetwork* PFNN;
-
-	int FrameCounter;
-
-	bool bIsPFNNLoaded;
-
-private:
-	void DrawDebugSkeleton(const FPoseContext& arg_Context);
-	void DrawDebugBoneVelocity(const FPoseContext& arg_Context);
-	void VisualizePhase();
-
 };

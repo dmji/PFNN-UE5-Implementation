@@ -8,20 +8,18 @@
 void UPFNNAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
-	APFNNCharacter* OwningCharacter = Cast<APFNNCharacter>(TryGetPawnOwner());
-	if(OwningCharacter)
+
+	if(APFNNCharacter* OwningCharacter = Cast<APFNNCharacter>(TryGetPawnOwner()))
 	{
 		OwningTrajectoryComponent = OwningCharacter->GetTrajectoryComponent();
 	}
-
 }
 
 void UPFNNAnimInstance::NativeUpdateAnimation(float arg_DeltaTimeX)
 {
 	Super::NativeUpdateAnimation(arg_DeltaTimeX);
 
-	APFNNCharacter* OwningCharacter = Cast<APFNNCharacter>(TryGetPawnOwner());
-	if(OwningCharacter)
+	if(APFNNCharacter* OwningCharacter = Cast<APFNNCharacter>(TryGetPawnOwner()))
 	{
 		OwningTrajectoryComponent = OwningCharacter->GetTrajectoryComponent();
 	}

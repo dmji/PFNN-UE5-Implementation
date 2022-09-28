@@ -13,7 +13,9 @@
 
 #include "Runtime/Core/Public/Misc/Paths.h"
 
-UPFNNDataContainer::UPFNNDataContainer(const FObjectInitializer& arg_ObjectInitializer) : Super(arg_ObjectInitializer), bIsDataLoaded(false)
+UPFNNDataContainer::UPFNNDataContainer(const FObjectInitializer& arg_ObjectInitializer) 
+	: Super(arg_ObjectInitializer)
+	, bIsDataLoaded(false)
 {
 	Xp = Eigen::ArrayXf(static_cast<int>(XDIM));
 	Yp = Eigen::ArrayXf(static_cast<int>(YDIM));
@@ -54,58 +56,35 @@ void UPFNNDataContainer::LoadNetworkData(EPFNNMode arg_Mode)
 	LoadWeights(Ymean, YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ymean.bin")));
 	LoadWeights(Ystd, YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ystd.bin")));
 
+	int32 size_weights = 0;
+	double index_scale = 1.0;
 	switch(arg_Mode)
 	{
 	case EPFNNMode::PM_Constant:
-
-		W0.SetNum(50); W1.SetNum(50); W2.SetNum(50);
-		b0.SetNum(50); b1.SetNum(50); b2.SetNum(50);
-
-		for(int i = 0; i < 50; i++)
-		{
-			LoadWeights(W0[i], HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03d.bin"), i));
-			LoadWeights(W1[i], HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03d.bin"), i));
-			LoadWeights(W2[i], YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03d.bin"), i));
-			LoadWeights(b0[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03d.bin"), i));
-			LoadWeights(b1[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03d.bin"), i));
-			LoadWeights(b2[i], YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03d.bin"), i));
-		}
-
+		size_weights = 50;
+		index_scale = 1.0;
 		break;
-
 	case EPFNNMode::PM_Linear:
-
-		W0.SetNum(10); W1.SetNum(10); W2.SetNum(10);
-		b0.SetNum(10); b1.SetNum(10); b2.SetNum(10);
-
-		for(int i = 0; i < 10; i++)
-		{
-			LoadWeights(W0[i], HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03d.bin"), i * 5));
-			LoadWeights(W1[i], HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03d.bin"), i * 5));
-			LoadWeights(W2[i], YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03d.bin"), i * 5));
-			LoadWeights(b0[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03d.bin"), i * 5));
-			LoadWeights(b1[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03d.bin"), i * 5));
-			LoadWeights(b2[i], YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03d.bin"), i * 5));
-		}
-
+		size_weights = 10;
+		index_scale = 5.0;
 		break;
-
 	case EPFNNMode::PM_Cubic:
-
-		W0.SetNum(4); W1.SetNum(4); W2.SetNum(4);
-		b0.SetNum(4); b1.SetNum(4); b2.SetNum(4);
-
-		for(int i = 0; i < 4; i++)
-		{
-			LoadWeights(W0[i], HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03i.bin"), static_cast<int>(i * 12.5)));
-			LoadWeights(W1[i], HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03i.bin"), static_cast<int>(i * 12.5)));
-			LoadWeights(W2[i], YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03i.bin"), static_cast<int>(i * 12.5)));
-			LoadWeights(b0[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03i.bin"), static_cast<int>(i * 12.5)));
-			LoadWeights(b1[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03i.bin"), static_cast<int>(i * 12.5)));
-			LoadWeights(b2[i], YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03i.bin"), static_cast<int>(i * 12.5)));
-		}
-
+		size_weights = 4;
+		index_scale = 12.5;
 		break;
+	}
+
+	W0.SetNum(size_weights); W1.SetNum(size_weights); W2.SetNum(size_weights);
+	b0.SetNum(size_weights); b1.SetNum(size_weights); b2.SetNum(size_weights);
+	for(int i = 0; i < size_weights; i++)
+	{
+		const int32 index_scaled = static_cast<int>(i * index_scale);
+		LoadWeights(W0[i], HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03d.bin"), index_scaled));
+		LoadWeights(W1[i], HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03d.bin"), index_scaled));
+		LoadWeights(W2[i], YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03d.bin"), index_scaled));
+		LoadWeights(b0[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03d.bin"), index_scaled));
+		LoadWeights(b1[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03d.bin"), index_scaled));
+		LoadWeights(b2[i], YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03d.bin"), index_scaled));
 	}
 
 	bIsDataLoaded = true;
@@ -215,7 +194,8 @@ FCriticalSection* UPFNNDataContainer::GetDataLocker()
 	return &DataLocker;
 }
 
-FPFNNDataLoader::FPFNNDataLoader(UPFNNDataContainer* arg_PFNNDataContainer) : PFNNDataContainer(arg_PFNNDataContainer)
+FPFNNDataLoader::FPFNNDataLoader(UPFNNDataContainer* arg_PFNNDataContainer)
+	: PFNNDataContainer(arg_PFNNDataContainer)
 {}
 
 FPFNNDataLoader::~FPFNNDataLoader()
@@ -242,12 +222,10 @@ PFNNWeigthLoader::~PFNNWeigthLoader()
 void PFNNWeigthLoader::DoWork()
 {
 	if(MatrixDelegate.IsBound())
-	{
 		return;
-	}
+
 	if(VectorDelegate.IsBound())
-	{
 		return;
-	}
+
 	UE_LOG(PFNN_Logging, Warning, TEXT("Attempting to Launch Weight loading thread without binding function delegates!"));
 }

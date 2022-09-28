@@ -25,6 +25,6 @@ public:
 private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "True"))
-		class UPFNNDataContainer* PFNNDataContainer;
+	class UPFNNDataContainer* PFNNDataContainer;
 };
 

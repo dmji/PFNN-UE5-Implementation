@@ -79,10 +79,13 @@ public:
 	glm::vec3 TargetVelocity;
 	UPROPERTY(EditAnywhere, Category = BaseValues)
 	float Width;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BaseValues)
 	float StrafeAmount;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BaseValues)
 	float StrafeTarget;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = BaseValues)
 	float Responsive;
 
@@ -91,14 +94,19 @@ public:
 	//Extra smoothing values
 	UPROPERTY(EditAnywhere, Category = ExtraSmoothing)
 	float ExtraVelocitySmooth;
+
 	UPROPERTY(EditAnywhere, Category = ExtraSmoothing)
 	float ExtraStrafeVelocity;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = ExtraSmoothing)
 	float ExtraDirectionSmooth;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = ExtraSmoothing)
 	float ExtraStrafeSmooth;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = ExtraSmoothing)
 	float ExtraGaitSmooth;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = ExtraSmoothing)
 	float ExtraJointSmooth;
 
@@ -106,18 +114,23 @@ public:
 	glm::vec3 Positions[LENGTH];
 	glm::vec3 Directions[LENGTH];
 	glm::mat3 Rotations[LENGTH];
+
 	UPROPERTY(VisibleAnywhere, Category = PositionalData)
 	float Heights[LENGTH];
 
 	//Gaits
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitStand[LENGTH];
+
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitWalk[LENGTH];
+
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitJog[LENGTH];
+
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitJump[LENGTH];
+
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitBump[LENGTH];
 

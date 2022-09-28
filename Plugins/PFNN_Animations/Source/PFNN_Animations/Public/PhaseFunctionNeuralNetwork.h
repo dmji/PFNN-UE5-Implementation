@@ -18,6 +18,7 @@ enum class EPFNNMode: uint8
 	PM_Linear		UMETA(DisplayName = "Linear"),
 	PM_Cubic		UMETA(DisplayName = "Cubic")
 };
+
 /**
  * 
  */
@@ -26,7 +27,7 @@ class PFNN_ANIMATIONS_API UPhaseFunctionNeuralNetwork : public UDeveloperSetting
 {
 public:
 	GENERATED_BODY()
-		UPhaseFunctionNeuralNetwork();
+	UPhaseFunctionNeuralNetwork();
 	~UPhaseFunctionNeuralNetwork();
 
 	/*
@@ -85,13 +86,10 @@ public:
 public:
 
 	UPROPERTY(EditAnywhere, Config, Category = "Network", meta = (ConfigRestartRequired = true))
-		EPFNNMode Mode;
+	EPFNNMode Mode;
 
 	//DO NOT CHANGE! These values determine the dimentions of the Neural Network. Changing them without knowing what you are doing will crash the engine.
-	enum
-	{
-		XDIM = 342, YDIM = 311, HDIM = 512
-	};
+	enum { XDIM = 342, YDIM = 311, HDIM = 512 };
 
 	Eigen::ArrayXf Xmean, Xstd;
 	Eigen::ArrayXf Ymean, Ystd;

@@ -41,32 +41,31 @@ UPhaseFunctionNeuralNetwork::~UPhaseFunctionNeuralNetwork()
 bool UPhaseFunctionNeuralNetwork::LoadNetworkData(UObject* arg_ContextObject)
 {
 	UPFNNGameInstance* GameInstance = Cast<UPFNNGameInstance>(UGameplayStatics::GetGameInstance(arg_ContextObject));
-	if(GameInstance)
-	{
-		UPFNNDataContainer* DataContainer = GameInstance->GetPFNNDataContainer();
-		if(DataContainer->GetDataLocker()->TryLock()) //Successfull Lock means we aren't currently writing to the DataContainer and we can safely lock
-		{
-			if(!DataContainer->IsBeingLoaded())
-			{
-				if(DataContainer->IsDataLoaded())
-				{
-					DataContainer->GetNetworkData(*this);
-					DataContainer->GetDataLocker()->Unlock();
-					return true;
-				}
-				DataContainer->SetIsBeingLoaded(true);
-				GameInstance->LoadPFNNDataAsync();
-			}
-			else
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, TEXT("PFNN Files are being loaded..."));
-			}
-			DataContainer->GetDataLocker()->Unlock();
-		}
-	}
-	else
+	if(!GameInstance)
 	{
 		UE_LOG(PFNN_Logging, Error, TEXT("Invalid GameInstance for PFNN"));
+		return false;
+	}
+
+	UPFNNDataContainer* DataContainer = GameInstance->GetPFNNDataContainer();
+	if(DataContainer->GetDataLocker()->TryLock()) //Successfull Lock means we aren't currently writing to the DataContainer and we can safely lock
+	{
+		if(!DataContainer->IsBeingLoaded())
+		{
+			if(DataContainer->IsDataLoaded())
+			{
+				DataContainer->GetNetworkData(*this);
+				DataContainer->GetDataLocker()->Unlock();
+				return true;
+			}
+			DataContainer->SetIsBeingLoaded(true);
+			GameInstance->LoadPFNNDataAsync();
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Green, TEXT("PFNN Files are being loaded..."));
+		}
+		DataContainer->GetDataLocker()->Unlock();
 	}
 	return false;
 }
@@ -78,37 +77,32 @@ void UPhaseFunctionNeuralNetwork::ELU(Eigen::ArrayXf& arg_X)
 
 void UPhaseFunctionNeuralNetwork::Linear(Eigen::ArrayXf& arg_Out, const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, float arg_MU)
 {
-	arg_Out = (1.0f - arg_MU) * arg_Y0 + (arg_MU)*arg_Y1;
+	arg_Out = (1.0f - arg_MU) * arg_Y0 + arg_MU * arg_Y1;
 }
 void UPhaseFunctionNeuralNetwork::Linear(Eigen::ArrayXXf& arg_Out, const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, float arg_MU)
 {
-	arg_Out = (1.0f - arg_MU) * arg_Y0 + (arg_MU)*arg_Y1;
+	arg_Out = (1.0f - arg_MU) * arg_Y0 + arg_MU * arg_Y1;
 }
 
 void UPhaseFunctionNeuralNetwork::Cubic(Eigen::ArrayXf& arg_Out, const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, const Eigen::ArrayXf& arg_Y2, const Eigen::ArrayXf& arg_Y3, float arg_MU)
 {
-	arg_Out = (
-		(-0.5 * arg_Y0 + 1.5 * arg_Y1 - 1.5 * arg_Y2 + 0.5 * arg_Y3) * arg_MU * arg_MU * arg_MU +
-		(arg_Y0 - 2.5 * arg_Y1 + 2.0 * arg_Y2 - 0.5 * arg_Y3) * arg_MU * arg_MU +
+	arg_Out = (-0.5 * arg_Y0 + 1.5 * arg_Y1 - 1.5 * arg_Y2 + 0.5 * arg_Y3) * powf(arg_MU, 3) +
+		(arg_Y0 - 2.5 * arg_Y1 + 2.0 * arg_Y2 - 0.5 * arg_Y3) * powf(arg_MU, 2) +
 		(-0.5 * arg_Y0 + 0.5 * arg_Y2) * arg_MU +
-		(arg_Y1));
+		arg_Y1;
 }
 void UPhaseFunctionNeuralNetwork::Cubic(Eigen::ArrayXXf& arg_Out, const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, const Eigen::ArrayXXf& arg_Y2, const Eigen::ArrayXXf& arg_Y3, float arg_MU)
 {
-	arg_Out = (
-		(-0.5 * arg_Y0 + 1.5 * arg_Y1 - 1.5 * arg_Y2 + 0.5 * arg_Y3) * arg_MU * arg_MU * arg_MU +
-		(arg_Y0 - 2.5 * arg_Y1 + 2.0 * arg_Y2 - 0.5 * arg_Y3) * arg_MU * arg_MU +
+	arg_Out = (-0.5 * arg_Y0 + 1.5 * arg_Y1 - 1.5 * arg_Y2 + 0.5 * arg_Y3) * powf(arg_MU, 3) +
+		(arg_Y0 - 2.5 * arg_Y1 + 2.0 * arg_Y2 - 0.5 * arg_Y3) * powf(arg_MU, 2) +
 		(-0.5 * arg_Y0 + 0.5 * arg_Y2) * arg_MU +
-		(arg_Y1));
+		arg_Y1;
 }
 
 void UPhaseFunctionNeuralNetwork::Predict(float arg_Phase)
 {
 	float pamount;
-	int pindex_0;
-	int pindex_1;
-	int pindex_2;
-	int pindex_3;
+	int32 pindex_0, pindex_1, pindex_2, pindex_3;
 
 	Xp = (Xp - Xmean) / Xstd;
 

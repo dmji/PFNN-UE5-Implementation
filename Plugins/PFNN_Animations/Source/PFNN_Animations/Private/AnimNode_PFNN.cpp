@@ -327,7 +327,8 @@ void FAnimNode_PFNN::Initialize_AnyThread(const FAnimationInitializeContext& arg
 void FAnimNode_PFNN::Update_AnyThread(const FAnimationUpdateContext& arg_Context)
 {
 	FAnimNode_Base::Update_AnyThread(arg_Context);
-
+	
+	//FBoneContainer bones = arg_Context.AnimInstanceProxy->GetRequiredBones();
 	if(!bIsPFNNLoaded)
 		LoadData();
 

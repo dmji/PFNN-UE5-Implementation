@@ -24,9 +24,7 @@ class PFNN_ANIMATIONS_API UPFNNDataContainer : public UObject
 	GENERATED_BODY()
 
 public:
-
 	UPFNNDataContainer(const FObjectInitializer& arg_ObjectInitializer);
-
 	~UPFNNDataContainer();
 
 	/*
@@ -48,12 +46,11 @@ public:
 	FCriticalSection* GetDataLocker();
 
 private:
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "True"))
-		bool bIsDataLoaded;
+	bool bIsDataLoaded;
 
 	UPROPERTY()
-		bool bIsCurrentlyLoading;
+	bool bIsCurrentlyLoading;
 
 	EPFNNMode LoadingMode;
 
@@ -94,11 +91,8 @@ private:
 
 class FPFNNDataLoader: public FNonAbandonableTask
 {
-
 public:
-
 	FPFNNDataLoader(UPFNNDataContainer* arg_PFNNDataContainer);
-
 	~FPFNNDataLoader();
 
 	FORCEINLINE TStatId GetStatId() const
@@ -109,16 +103,14 @@ public:
 	void DoWork();
 
 private:
-
 	UPROPERTY()
-		UPFNNDataContainer* PFNNDataContainer;
+	UPFNNDataContainer* PFNNDataContainer;
 
 };
 
 class PFNNWeigthLoader: public FNonAbandonableTask
 {
 public:
-
 	PFNNWeigthLoader(WeigthLoadingMatrixDelegate arg_FunctionDelegate);
 	PFNNWeigthLoader(WeigthLoadingVectorDelegate arg_FunctionDelegate);
 
@@ -132,8 +124,6 @@ public:
 	void DoWork();
 
 private:
-
 	WeigthLoadingMatrixDelegate MatrixDelegate;
 	WeigthLoadingVectorDelegate VectorDelegate;
-
 };
