@@ -37,45 +37,41 @@ public:
 
 	/*
 	* @Description Exponential Linear Unit(ELU) activation function
-	* @Param[in] arg_X, Base of the Eigen array
+	* @Param[in/out] arg_X, Base of the Eigen array
 	*/
 	static void ELU(Eigen::ArrayXf& arg_X);
 
 	/*
 	* @Description Linear implementation of the PFNN more computation intensive but requires less memory
-	* @Param[out] arg_Out, Calculation output
 	* @Param[in] arg_Y0, Output eigen array
 	* @Param[in] arg_Y1, Output eigen array
 	* @Param[in] arg_MU, Bias
 	*/
-	static void Linear(Eigen::ArrayXf& arg_Out, const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, float arg_MU);
+	static Eigen::ArrayXf Linear(const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, float arg_MU);
 	/*
 	* @Description Linear implementation of the PFNN more computation intensive but requires less memory
-	* @Param[out] arg_Out, Calculation output
 	* @Param[in] arg_Y0, Output eigen array
 	* @Param[in] arg_Y1, Output eigen array
 	* @Param[in] arg_MU, Bias
 	*/
-	static void Linear(Eigen::ArrayXXf& arg_Out, const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, float arg_MU);
+	static Eigen::ArrayXXf Linear(const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, float arg_MU);
 
 	/*
 	* @Description Cubic implementation of the PFNN more memory intensive but faster computation
-	* @Param[out] arg_Out, Calculation output
 	* @Param[in] arg_Y0, Output eigen array
 	* @Param[in] arg_Y1, Output eigen array
 	* @Param[in] arg_Y3, Output eigen array
 	* @Param[in] arg_MU, Bias
 	*/
-	static void Cubic(Eigen::ArrayXf& arg_Out, const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, const Eigen::ArrayXf& arg_Y2, const Eigen::ArrayXf& arg_Y3, float arg_MU);
+	static Eigen::ArrayXf Cubic(const Eigen::ArrayXf& arg_Y0, const Eigen::ArrayXf& arg_Y1, const Eigen::ArrayXf& arg_Y2, const Eigen::ArrayXf& arg_Y3, float arg_MU);
 	/*
 	* @Description Linear implementation of the PFNN more computation intensive but requires less memory
-	* @Param[out] arg_Out, Calculation output
 	* @Param[in] arg_Y0, Output eigen array
 	* @Param[in] arg_Y1, Output eigen array
 	* @Param[in] arg_Y3, Output eigen array
 	* @Param[in] arg_MU, Bias
 	*/
-	static void Cubic(Eigen::ArrayXXf& arg_Out, const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, const Eigen::ArrayXXf& arg_Y2, const Eigen::ArrayXXf& arg_Y3, float arg_MU);
+	static Eigen::ArrayXXf Cubic(const Eigen::ArrayXXf& arg_Y0, const Eigen::ArrayXXf& arg_Y1, const Eigen::ArrayXXf& arg_Y2, const Eigen::ArrayXXf& arg_Y3, float arg_MU);
 
 	/*
 	* @Description Makes the neural network predict based on the given phase

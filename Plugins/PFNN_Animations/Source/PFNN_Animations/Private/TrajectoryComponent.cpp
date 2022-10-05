@@ -22,7 +22,10 @@
 #include <fstream>
 
 // Sets default values for this component's properties
-UTrajectoryComponent::UTrajectoryComponent() : ExtraStrafeSmooth(0), ExtraGaitSmooth(0), ExtraJointSmooth(0)
+UTrajectoryComponent::UTrajectoryComponent() 
+	: ExtraStrafeSmooth(0)
+	, ExtraGaitSmooth(0)
+	, ExtraJointSmooth(0)
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
@@ -130,33 +133,94 @@ void UTrajectoryComponent::TickGaits()
 	const float JogCuttoff = 0.5f;
 	const auto TrajectoryLength = glm::length(TargetVelocity);
 	//const auto NormalizedTrajectoryLength = glm::normalize(TrajectoryLength);
-	if(TrajectoryLength < MovementCutOff) //Standing
+	const int32 MedianLength = LENGTH / 2;
+#if 0 
+	if(TrajectoryLength < MovementCutOff)  // stand
 	{
 		const float StandingClampMin = 0.0f;
 		const float StandingClampMax = 1.0f;
-		const float StandingAmount = 1.0f - glm::clamp(glm::length(TargetVelocity) / 0.1f, StandingClampMin, StandingClampMax);
-		GaitStand[LENGTH / 2] = glm::mix(GaitStand[LENGTH / 2], StandingAmount, ExtraGaitSmooth);
-		GaitWalk[LENGTH / 2] = glm::mix(GaitWalk[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitJog[LENGTH / 2] = glm::mix(GaitJog[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitJump[LENGTH / 2] = glm::mix(GaitJump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitBump[LENGTH / 2] = glm::mix(GaitBump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
+		const float stand_amount = 1.0f - glm::clamp(TrajectoryLength * 10, StandingClampMin, StandingClampMax);
+		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], stand_amount, ExtraGaitSmooth);
+		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
 	}
-	else if(glm::abs(TargetVelocity.x) > JogCuttoff || glm::abs(TargetVelocity.y) > JogCuttoff) //Jog
+	//else if(const float crouched = character->crouched_amount; crouched > 0.1) // crouched
+	//{
+	//	GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
+	//	GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
+	//	GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
+	//	GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], crouched, ExtraGaitSmooth);
+	//	GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
+	//	GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
+	//}
+	else if(glm::abs(TrajectoryLength) > JogCuttoff) //Jog old
+	// else if((SDL_JoystickGetAxis(stick, GAMEPAD_TRIGGER_R) / 32768.0) + 1.0) // jog original
+	// else if(glm::abs(TargetVelocity.x) > JogCuttoff || glm::abs(TargetVelocity.y) > JogCuttoff) //Jog old
 	{
-		GaitStand[LENGTH / 2] = glm::mix(GaitStand[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitWalk[LENGTH / 2] = glm::mix(GaitWalk[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitJog[LENGTH / 2] = glm::mix(GaitJog[LENGTH / 2], 1.0f, ExtraGaitSmooth);
-		GaitJump[LENGTH / 2] = glm::mix(GaitJump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitBump[LENGTH / 2] = glm::mix(GaitBump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
+		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 1.0f, ExtraGaitSmooth);
+		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
 	}
-	else //Walking
+	else // walk
 	{
-		GaitStand[LENGTH / 2] = glm::mix(GaitStand[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitWalk[LENGTH / 2] = glm::mix(GaitWalk[LENGTH / 2], 1.0f, ExtraGaitSmooth);
-		GaitJog[LENGTH / 2] = glm::mix(GaitJog[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitJump[LENGTH / 2] = glm::mix(GaitJump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
-		GaitBump[LENGTH / 2] = glm::mix(GaitBump[LENGTH / 2], 0.0f, ExtraGaitSmooth);
+		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 1.0f, ExtraGaitSmooth);
+		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
+		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
 	}
+#else
+	const auto updateValue = [&](float& param, const float value) { param = glm::mix(param, value, ExtraGaitSmooth); };
+	if(TrajectoryLength < MovementCutOff)  // stand
+	{
+		const float StandingClampMin = 0.0f;
+		const float StandingClampMax = 1.0f;
+		float stand_amount = 1.0f - glm::clamp(TrajectoryLength * 10, StandingClampMin, StandingClampMax);
+		updateValue(GaitStand[MedianLength], stand_amount);
+		updateValue(GaitWalk[MedianLength], 0.0f);
+		updateValue(GaitJog[MedianLength], 0.0f);
+		updateValue(GaitCrouch[MedianLength], 0.0f);
+		updateValue(GaitJump[MedianLength], 0.0f);
+		updateValue(GaitBump[MedianLength], 0.0f);
+	}
+	//else if(const float crouched = character->crouched_amount; crouched > 0.1) // crouched
+	//{
+	//	updateValue(GaitStand[MedianLength], 0.0f);
+	//	updateValue(GaitWalk[MedianLength], 0.0f);
+	//	updateValue(GaitJog[MedianLength], 0.0f);
+	//	updateValue(GaitCrouch[MedianLength], crouched);
+	//	updateValue(GaitJump[MedianLength], 0.0f);
+	//	updateValue(GaitBump[MedianLength], 0.0f);
+	//}
+	else if(glm::abs(TrajectoryLength) > JogCuttoff) //Jog old
+		// else if((SDL_JoystickGetAxis(stick, GAMEPAD_TRIGGER_R) / 32768.0) + 1.0) // jog original
+		// else if(glm::abs(TargetVelocity.x) > JogCuttoff || glm::abs(TargetVelocity.y) > JogCuttoff) //Jog old
+	{
+		updateValue(GaitStand[MedianLength], 0.0f);
+		updateValue(GaitWalk[MedianLength], 0.0f);
+		updateValue(GaitJog[MedianLength], 1.0f);
+		updateValue(GaitCrouch[MedianLength], 0.0f);
+		updateValue(GaitJump[MedianLength], 0.0f);
+		updateValue(GaitBump[MedianLength], 0.0f);
+	}
+	else // walk
+	{
+		updateValue(GaitStand[MedianLength], 0.0f);
+		updateValue(GaitWalk[MedianLength], 1.0f);
+		updateValue(GaitJog[MedianLength], 0.0f);
+		updateValue(GaitCrouch[MedianLength], 0.0f);
+		updateValue(GaitJump[MedianLength], 0.0f);
+		updateValue(GaitBump[MedianLength], 0.0f);
+	}
+#endif //0
+
 
 	if(bIsTrajectoryDebuggingEnabled)
 	{
@@ -165,6 +229,7 @@ void UTrajectoryComponent::TickGaits()
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%f Gait Jog "), GaitJog[LENGTH / 2]));
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%f Gait Jump "), GaitJump[LENGTH / 2]));
 		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%f Gait Bump "), GaitBump[LENGTH / 2]));
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%f TrajectoryLength "), TrajectoryLength));
 	}
 }
 
@@ -375,21 +440,22 @@ void UTrajectoryComponent::TickInput()
 
 void UTrajectoryComponent::CalculateTargetDirection()
 {
-	glm::vec3 FlippedForward = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(OwnerPawn->GetActorForwardVector().X, OwnerPawn->GetActorForwardVector().Y, 0.0f));
+	const auto actorForwardVector = OwnerPawn->GetActorForwardVector();
+	glm::vec3 FlippedForward = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(actorForwardVector.X, actorForwardVector.Y, 0.0f));
 	glm::vec3 TrajectoryTargetDirectionNew = glm::normalize(FlippedForward);
-	const glm::mat3 TrajectoryTargetRotation = glm::mat3(glm::rotate(atan2f(
-		TrajectoryTargetDirectionNew.x,
-		TrajectoryTargetDirectionNew.z), glm::vec3(0.0f, 1.0f, 0.0f)));
+	const glm::mat3 TrajectoryTargetRotation = glm::mat3(glm::rotate(atan2f(TrajectoryTargetDirectionNew.x, TrajectoryTargetDirectionNew.z), glm::vec3(0.0f, 1.0f, 0.0f)));
 
-	const float TargetVelocitySpeed = OwnerPawn->GetVelocity().SizeSquared() / (OwnerPawn->GetMovementComponent()->GetMaxSpeed() * OwnerPawn->GetMovementComponent()->GetMaxSpeed()) / 7.5f; //7.5 is current training walking speed
+	const float currentWalkingSpeed = 7.5f;
+	const float maxWalkSpeed = 500;
+	const float TargetVelocitySpeed = OwnerPawn->GetVelocity().SizeSquared() / (pow(maxWalkSpeed/*OwnerPawn->GetMovementComponent()->GetMaxSpeed()*/, 2) * currentWalkingSpeed); //7.5 is current training walking speed
 
 	const glm::vec3 TrajectoryTargetVelocityNew = TargetVelocitySpeed * (glm::vec3(CurrentFrameInput.x, 0.0f, CurrentFrameInput.y));
 	TargetVelocity = glm::mix(TargetVelocity, TrajectoryTargetVelocityNew, ExtraVelocitySmooth);
+
 	StrafeAmount = glm::mix(StrafeAmount, StrafeTarget, ExtraStrafeSmooth);
 	const glm::vec3 TrajectoryTargetVelocityDirection = glm::length(TargetVelocity) < 1e-05 ? TargetDirection : glm::normalize(TargetVelocity);
 	TrajectoryTargetDirectionNew = MixDirections(TrajectoryTargetVelocityDirection, TrajectoryTargetDirectionNew, StrafeAmount);
 	TargetDirection = TrajectoryTargetDirectionNew; MixDirections(TargetDirection, TrajectoryTargetDirectionNew, ExtraDirectionSmooth);
-
 
 	if(!bIsTrajectoryDebuggingEnabled)
 		return;
@@ -406,6 +472,12 @@ void UTrajectoryComponent::CalculateTargetDirection()
 	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Red, FString::Printf(TEXT("%s TargetVelocityNew"), *FlippedTargetVelocityNew.ToString()));
 	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%s TargetVelocity"), *FlippedTargetVelocity.ToString()));
 
+	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%s Pawn velocity vector"), *OwnerPawn->GetVelocity().ToString()));
+	const auto SizeSquared = OwnerPawn->GetVelocity().SizeSquared();
+	FString stri = FString::SanitizeFloat(SizeSquared, 8);
+	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("%s Pawn velocity Squared"),  *stri));
+
+#if 0 // unexpect throws
 	FVector ActorLoc = GetOwner()->GetActorLocation();
 	const auto drawDebugArrow = [&](const auto& actor, const auto& appendix, const auto color)
 	{
@@ -413,7 +485,7 @@ void UTrajectoryComponent::CalculateTargetDirection()
 		const uint8 depthPrior = 0;
 		const float thickness = 2.f;
 		const bool bPersistentLine = false;
-		DrawDebugDirectionalArrow(GetWorld(), actor, actor + appendix, 0.0f, color, bPersistentLine, lifeTime, depthPrior, thickness);
+		DrawDebugDirectionalArrow(GetWorld(), actor, actor + appendix + rand() % 5, 0.0f, color, bPersistentLine, lifeTime, depthPrior, thickness);
 	};
 
 	FVector FrameInputActor = ActorLoc + FVector(0.0f, 0.0f, 200.0f);
@@ -426,6 +498,7 @@ void UTrajectoryComponent::CalculateTargetDirection()
 	FVector TargetVelocityActor = ActorLoc + FVector(0.0f, 0.0f, 225.0f);
 	drawDebugArrow(TargetVelocityActor, FlippedTargetVelocityNew * 1000.0f, FColor::Red);
 	drawDebugArrow(TargetVelocityActor, FlippedTargetVelocity * 1000.0f, FColor::Yellow);
+#endif // 0
 }
 
 void UTrajectoryComponent::DrawDebugTrajectory()

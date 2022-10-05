@@ -2,6 +2,7 @@
 
 
 #include "PFNNDataContainer.h"
+#include "PFNNHelperFunctions.h"
 
 #ifdef DEFINE_UE_4_VERSION
 #include "GenericPlatformFile.h"
@@ -41,20 +42,20 @@ void UPFNNDataContainer::LoadNetworkData(EPFNNMode arg_Mode)
 {
 	DataLocker.Lock();
 
-	if(bIsDataLoaded)
+	if(IsDataLoaded())
 	{
 		UE_LOG(PFNN_Logging, Log, TEXT("Attempted to load PFNN data but it was already loaded. Attempt has been skipped."));
-		bIsCurrentlyLoading = false;
+		SetIsBeingLoaded(false);
 		DataLocker.Unlock();
 		return;
 	}
 
 	UE_LOG(PFNN_Logging, Log, TEXT("Loading PFNN Data..."));
 
-	LoadWeights(Xmean, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Xmean.bin")));
-	LoadWeights(Xstd, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Xstd.bin")));
-	LoadWeights(Ymean, YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ymean.bin")));
-	LoadWeights(Ystd, YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ystd.bin")));
+	Xmean = LoadWeights(XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Xmean.bin")));
+	Xstd = LoadWeights(XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Xstd.bin")));
+	Ymean = LoadWeights(YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ymean.bin")));
+	Ystd = LoadWeights(YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/Ystd.bin")));
 
 	int32 size_weights = 0;
 	double index_scale = 1.0;
@@ -78,22 +79,21 @@ void UPFNNDataContainer::LoadNetworkData(EPFNNMode arg_Mode)
 	b0.SetNum(size_weights); b1.SetNum(size_weights); b2.SetNum(size_weights);
 	for(int i = 0; i < size_weights; i++)
 	{
-		const int32 index_scaled = static_cast<int>(i * index_scale);
-		LoadWeights(W0[i], HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03d.bin"), index_scaled));
-		LoadWeights(W1[i], HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03d.bin"), index_scaled));
-		LoadWeights(W2[i], YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03d.bin"), index_scaled));
-		LoadWeights(b0[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03d.bin"), index_scaled));
-		LoadWeights(b1[i], HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03d.bin"), index_scaled));
-		LoadWeights(b2[i], YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03d.bin"), index_scaled));
+		const int32 index_scaled = fmod(i * index_scale, 1.0f);
+		W0[i] = LoadWeights(HDIM, XDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W0_%03d.bin"), index_scaled));
+		W1[i] = LoadWeights(HDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W1_%03d.bin"), index_scaled));
+		W2[i] = LoadWeights(YDIM, HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/W2_%03d.bin"), index_scaled));
+		b0[i] = LoadWeights(HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b0_%03d.bin"), index_scaled));
+		b1[i] = LoadWeights(HDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b1_%03d.bin"), index_scaled));
+		b2[i] = LoadWeights(YDIM, FString::Printf(TEXT("Plugins/PFNN_Animations/Content/MachineLearning/PhaseFunctionNeuralNetwork/Weights/b2_%03d.bin"), index_scaled));
 	}
 
 	bIsDataLoaded = true;
-	bIsCurrentlyLoading = false;
+	SetIsBeingLoaded(false);
 
 	DataLocker.Unlock();
 
 	UE_LOG(PFNN_Logging, Log, TEXT("Finished Loading PFNN Data"));
-
 }
 
 void UPFNNDataContainer::GetNetworkData(UPhaseFunctionNeuralNetwork& arg_PFNN)
@@ -112,66 +112,39 @@ void UPFNNDataContainer::GetNetworkData(UPhaseFunctionNeuralNetwork& arg_PFNN)
 	arg_PFNN.b0p = this->b0p; arg_PFNN.b1p = this->b1p; arg_PFNN.b2p = this->b2p;
 }
 
-static FFloat32 readItem(IFileHandle* FileHandle)
+Eigen::ArrayXXf UPFNNDataContainer::LoadWeights(const int arg_Rows, const int arg_Cols, const FString arg_FileName, ...)
 {
-	FFloat32 item;
-	uint8* ByteBuffer = reinterpret_cast<uint8*>(&item);
-
-	FileHandle->Read(ByteBuffer, sizeof(FFloat32));
-	return item;
-}
-
-void UPFNNDataContainer::LoadWeights(Eigen::ArrayXXf& arg_A, const int arg_Rows, const int arg_Cols, const FString arg_FileName, ...)
-{
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-	FString RelativePath = FPaths::ProjectDir();
-	const FString FullPath = RelativePath += arg_FileName;
-
-	IFileHandle* FileHandle = PlatformFile.OpenRead(*FullPath);
-
-	if(FileHandle == nullptr)
+	Eigen::ArrayXXf arg_A(arg_Rows, arg_Cols);
+	UPFNNHelperFileReader f(arg_FileName);
+	if(!f.isOpen())
 	{
 		UE_LOG(PFNN_Logging, Error, TEXT("Fatal error, Failed to load Phase Function Neural Network weights. File name "));
-		return;
 	}
-
-	arg_A = Eigen::ArrayXXf(arg_Rows, arg_Cols);
-	for(int x = 0; x < arg_Rows; x++)
+	else
 	{
-		for(int y = 0; y < arg_Cols; y++)
+		for(int iRow = 0; iRow < arg_Rows; iRow++)
 		{
-			FFloat32 item = readItem(FileHandle);
-			arg_A(x, y) = item.FloatValue;
+			for(int iCol = 0; iCol < arg_Cols; iCol++)
+				arg_A(iRow, iCol) = f.readItem().FloatValue;
 		}
 	}
-
-	delete FileHandle;
+	return arg_A;
 }
 
-void UPFNNDataContainer::LoadWeights(Eigen::ArrayXf& arg_V, const int arg_Items, const FString arg_FileName, ...)
+Eigen::ArrayXf UPFNNDataContainer::LoadWeights(const int arg_Items, const FString arg_FileName, ...)
 {
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-	FString RelativePath = FPaths::ProjectDir();
-	const FString FullPath = RelativePath += arg_FileName;
-
-	IFileHandle* FileHandle = PlatformFile.OpenRead(*FullPath);
-
-	if(FileHandle == nullptr)
+	Eigen::ArrayXf arg_V(arg_Items);
+	UPFNNHelperFileReader f(arg_FileName);
+	if(!f.isOpen())
 	{
 		UE_LOG(PFNN_Logging, Error, TEXT("Failed to load Weights file: %s"), *arg_FileName);
-		return;
 	}
-
-	arg_V = Eigen::ArrayXf(arg_Items);
-	for(int i = 0; i < arg_Items; i++)
+	else
 	{
-		FFloat32 item = readItem(FileHandle);
-		arg_V(i) = item.FloatValue;
+		for(int32 iItem = 0; iItem < arg_Items; iItem++)
+			arg_V(iItem) = f.readItem().FloatValue;
 	}
-
-	delete FileHandle;
+	return arg_V;
 }
 
 bool UPFNNDataContainer::IsDataLoaded() const

@@ -95,8 +95,8 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 
 	FAnimNode_PFNN();
 
-	void LoadData();
-	void LoadXForms();
+	void LoadData(const FAnimationUpdateContext& arg_Context);
+	void LoadXForms(const FAnimationUpdateContext& arg_Context);
 	void LoadPFNN();
 
 	void ApplyPFNN();
@@ -118,7 +118,7 @@ public:
 	int FrameCounter;
 
 	//Amount of joints
-	enum { JOINT_NUM = 31 };
+	int32 JOINT_NUM = 31;
 
 	UPROPERTY()
 	class UPFNNAnimInstance* PFNNAnimInstance;
@@ -127,16 +127,16 @@ public:
 	UTrajectoryComponent* Trajectory = nullptr;
 
 	//LOG THESE VARIABLES
-	glm::vec3 JointPosition[JOINT_NUM];
-	glm::vec3 JointVelocitys[JOINT_NUM];
-	glm::vec3 JointRotations[JOINT_NUM];
-
-	glm::mat4 JointAnimXform[JOINT_NUM];
-	glm::mat4 JointRestXform[JOINT_NUM];
-	glm::mat4 JointMeshXform[JOINT_NUM];
-	glm::mat4 JointGlobalRestXform[JOINT_NUM];
-	glm::mat4 JointGlobalAnimXform[JOINT_NUM];
-	int JointParents[JOINT_NUM];
+	TArray<glm::vec3> JointPosition;
+	TArray<glm::vec3> JointVelocitys;
+	TArray<glm::vec3> JointRotations;
+	
+	TArray<glm::mat4> JointAnimXform;
+	TArray<glm::mat4> JointRestXform;
+	TArray<glm::mat4> JointMeshXform;
+	TArray<glm::mat4> JointGlobalRestXform;
+	TArray<glm::mat4> JointGlobalAnimXform;
+	TArray<int> JointParents;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = PFNN)
 	float Phase;

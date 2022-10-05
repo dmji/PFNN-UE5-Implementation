@@ -129,19 +129,20 @@ public:
 	float GaitJog[LENGTH];
 
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
+	float GaitCrouch[LENGTH];
+
+	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitJump[LENGTH];
 
 	UPROPERTY(VisibleAnywhere, Category = Gaits)
 	float GaitBump[LENGTH];
 
 private:
+	glm::vec2 CurrentFrameInput;
 
 	UPROPERTY()
 	APawn* OwnerPawn;
 
-	glm::vec2 CurrentFrameInput;
-
 	UPROPERTY(EditAnywhere, Category = PFNNDebugging, meta = (AllowPrivateAccess = "True"))
 	bool bIsTrajectoryDebuggingEnabled;
-
 };

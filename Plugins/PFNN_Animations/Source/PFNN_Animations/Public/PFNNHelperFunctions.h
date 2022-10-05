@@ -24,3 +24,21 @@ public:
 	static glm::vec3 XZYTranslationToXYZ(const glm::vec3& arg_TranslationVector);
 
 };
+
+/**
+ * Lazy destroy file handle
+ */
+class PFNN_ANIMATIONS_API UPFNNHelperFileReader
+{
+	UPFNNHelperFileReader() = delete;
+
+public:
+	UPFNNHelperFileReader(const FString arg_FileName, ...);
+	~UPFNNHelperFileReader();
+	
+	FFloat32 readItem();
+	bool isOpen() { return nullptr != m_FileHandle; }
+
+private:
+	IFileHandle* m_FileHandle;
+};

@@ -56,19 +56,17 @@ private:
 
 	/*
 	* @Description Load weights for the Phase Function Neural Network
-	* @Param[in] arg_A, Base of eigen array
 	* @Param[in] arg_Rows, Number of rows in the matrix
 	* @Param[in] arg_Cols, Number of colums in the matrix
 	* @Param[in] arg_FileName, The file path where to find the Neural Network data
 	*/
-	void LoadWeights(Eigen::ArrayXXf& arg_A, const int arg_Rows, const int arg_Cols, const FString arg_FileName, ...);
+	Eigen::ArrayXXf LoadWeights(const int arg_Rows, const int arg_Cols, const FString arg_FileName, ...);
 	/*
 	* @Description Load weights for the Phase Function Neural Network
-	* @Param[in] arg_V, Base of eigen array
 	* @Param[in] arg_Items, Items that need to be loaded in
 	* @Param[in] arg_FileName, The file path where to find the Neural Network data
 	*/
-	void LoadWeights(Eigen::ArrayXf& arg_V, const int arg_Items, const FString arg_FileName, ...);
+	Eigen::ArrayXf LoadWeights(const int arg_Items, const FString arg_FileName, ...);
 
 	//DO NOT CHANGE! These values determine the dimentions of the Neural Network. Changing them without knowing what you are doing will crash the engine.
 	enum { XDIM = 342, YDIM = 311, HDIM = 512 };
@@ -105,7 +103,6 @@ public:
 private:
 	UPROPERTY()
 	UPFNNDataContainer* PFNNDataContainer;
-
 };
 
 class PFNNWeigthLoader: public FNonAbandonableTask
