@@ -30,7 +30,7 @@ public:
 	/*
 	* @Description Load in the Phase Function Neural Network.
 	*/
-	void LoadNetworkData(EPFNNMode arg_Mode);
+	void LoadNetworkData();
 	/*
 	* @Description Puts data into the passed PFNN object
 	* @Param[out] arg_PFNN, The object that will recieve the data

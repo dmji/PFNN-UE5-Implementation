@@ -38,7 +38,7 @@ UPFNNDataContainer::~UPFNNDataContainer()
 	UE_LOG(PFNN_Logging, Log, TEXT("PFNN Data Container is being deconstructed..."));
 }
 
-void UPFNNDataContainer::LoadNetworkData(EPFNNMode arg_Mode)
+void UPFNNDataContainer::LoadNetworkData()
 {
 	DataLocker.Lock();
 
@@ -59,7 +59,7 @@ void UPFNNDataContainer::LoadNetworkData(EPFNNMode arg_Mode)
 
 	int32 size_weights = 0;
 	double index_scale = 1.0;
-	switch(arg_Mode)
+	switch(LoadingMode)
 	{
 	case EPFNNMode::PM_Constant:
 		size_weights = 50;
@@ -176,7 +176,7 @@ FPFNNDataLoader::~FPFNNDataLoader()
 
 void FPFNNDataLoader::DoWork()
 {
-	PFNNDataContainer->LoadNetworkData(EPFNNMode::PM_Cubic);
+	PFNNDataContainer->LoadNetworkData();
 }
 
 PFNNWeigthLoader::PFNNWeigthLoader(WeigthLoadingMatrixDelegate arg_FunctionDelegate)
