@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ThirdParty/glm/glm.hpp"
+#include "ThirdParty/Eigen/Dense"
+
 #include "TrajectoryComponent.generated.h"
 
 
@@ -39,10 +41,10 @@ public:
 	*/
 	void TickTrajectory();
 
-	/*
-	* @Description: Updates the past trajectory by retrieving current and updating each past node
-	*/
+	void ResetTrajectory(const glm::vec3& arg_RootPosition, const glm::mat3& root_rotation);
 	void UpdatePastTrajectory();
+	void UpdateCurrentTrajectory(const float StandAmount, Eigen::ArrayXf& PFNN_Yp);
+	void UpdateFutureTrajectory(Eigen::ArrayXf& PFNN_Yp);
 
 protected:
 

@@ -112,8 +112,7 @@ glm::vec3 UTrajectoryComponent::GetPreviousRootPosition() const
 	return glm::vec3(
 		Positions[idx].x,
 		Heights[idx],
-		Positions[idx].z
-	);
+		Positions[idx].z);
 }
 
 glm::mat3 UTrajectoryComponent::GetRootRotation() const
@@ -128,56 +127,18 @@ glm::mat3 UTrajectoryComponent::GetPreviousRootRotation() const
 
 void UTrajectoryComponent::TickGaits()
 {
+	// TODO: crouch amount update
+	//character->crouched_amount = glm::mix(character->crouched_amount, character->crouched_target, options->extra_crouched_smooth);
+
+
 	//Updating of the gaits
 	const float MovementCutOff = 0.01f;
 	const float JogCuttoff = 0.5f;
 	const auto TrajectoryLength = glm::length(TargetVelocity);
 	//const auto NormalizedTrajectoryLength = glm::normalize(TrajectoryLength);
 	const int32 MedianLength = LENGTH / 2;
-#if 0 
-	if(TrajectoryLength < MovementCutOff)  // stand
-	{
-		const float StandingClampMin = 0.0f;
-		const float StandingClampMax = 1.0f;
-		const float stand_amount = 1.0f - glm::clamp(TrajectoryLength * 10, StandingClampMin, StandingClampMax);
-		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], stand_amount, ExtraGaitSmooth);
-		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
-	}
-	//else if(const float crouched = character->crouched_amount; crouched > 0.1) // crouched
-	//{
-	//	GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
-	//	GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
-	//	GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
-	//	GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], crouched, ExtraGaitSmooth);
-	//	GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
-	//	GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
-	//}
-	else if(glm::abs(TrajectoryLength) > JogCuttoff) //Jog old
-	// else if((SDL_JoystickGetAxis(stick, GAMEPAD_TRIGGER_R) / 32768.0) + 1.0) // jog original
-	// else if(glm::abs(TargetVelocity.x) > JogCuttoff || glm::abs(TargetVelocity.y) > JogCuttoff) //Jog old
-	{
-		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 1.0f, ExtraGaitSmooth);
-		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
-	}
-	else // walk
-	{
-		GaitStand[MedianLength] = glm::mix(GaitStand[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitWalk[MedianLength] = glm::mix(GaitWalk[MedianLength], 1.0f, ExtraGaitSmooth);
-		GaitJog[MedianLength] = glm::mix(GaitJog[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitCrouch[MedianLength] = glm::mix(GaitCrouch[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitJump[MedianLength] = glm::mix(GaitJump[MedianLength], 0.0f, ExtraGaitSmooth);
-		GaitBump[MedianLength] = glm::mix(GaitBump[MedianLength], 0.0f, ExtraGaitSmooth);
-	}
-#else
-	const auto updateValue = [&](float& param, const float value) { param = glm::mix(param, value, ExtraGaitSmooth); };
+
+	const auto updateValue = [ExtraGaitSmooth = ExtraGaitSmooth](float& param, const float value) { param = glm::mix(param, value, ExtraGaitSmooth); };
 	if(TrajectoryLength < MovementCutOff)  // stand
 	{
 		const float StandingClampMin = 0.0f;
@@ -190,15 +151,15 @@ void UTrajectoryComponent::TickGaits()
 		updateValue(GaitJump[MedianLength], 0.0f);
 		updateValue(GaitBump[MedianLength], 0.0f);
 	}
-	//else if(const float crouched = character->crouched_amount; crouched > 0.1) // crouched
-	//{
-	//	updateValue(GaitStand[MedianLength], 0.0f);
-	//	updateValue(GaitWalk[MedianLength], 0.0f);
-	//	updateValue(GaitJog[MedianLength], 0.0f);
-	//	updateValue(GaitCrouch[MedianLength], crouched);
-	//	updateValue(GaitJump[MedianLength], 0.0f);
-	//	updateValue(GaitBump[MedianLength], 0.0f);
-	//}
+	else if(const float crouched = 0/*character->crouched_amount*/; crouched > 0.1) // crouched
+	{
+		updateValue(GaitStand[MedianLength], 0.0f);
+		updateValue(GaitWalk[MedianLength], 0.0f);
+		updateValue(GaitJog[MedianLength], 0.0f);
+		updateValue(GaitCrouch[MedianLength], crouched);
+		updateValue(GaitJump[MedianLength], 0.0f);
+		updateValue(GaitBump[MedianLength], 0.0f);
+	}
 	else if(glm::abs(TrajectoryLength) > JogCuttoff) //Jog old
 		// else if((SDL_JoystickGetAxis(stick, GAMEPAD_TRIGGER_R) / 32768.0) + 1.0) // jog original
 		// else if(glm::abs(TargetVelocity.x) > JogCuttoff || glm::abs(TargetVelocity.y) > JogCuttoff) //Jog old
@@ -219,8 +180,6 @@ void UTrajectoryComponent::TickGaits()
 		updateValue(GaitJump[MedianLength], 0.0f);
 		updateValue(GaitBump[MedianLength], 0.0f);
 	}
-#endif //0
-
 
 	if(bIsTrajectoryDebuggingEnabled)
 	{
@@ -235,54 +194,94 @@ void UTrajectoryComponent::TickGaits()
 
 void UTrajectoryComponent::PredictFutureTrajectory()
 {
+	const auto halfLength = LENGTH / 2;
 	//Predicting future trajectory
 	glm::vec3 TrajectoryPositionsBlend[LENGTH] = {glm::vec3(0.0f)};
-	TrajectoryPositionsBlend[LENGTH / 2] = Positions[LENGTH / 2];
+	TrajectoryPositionsBlend[halfLength] = Positions[halfLength];
 
 	const float BiasPosition = Responsive ? glm::mix(2.0f, 2.0f, StrafeAmount) : glm::mix(0.5f, 1.0f, StrafeAmount);
 	const float BiasDirection = Responsive ? glm::mix(5.0f, 3.0f, StrafeAmount) : glm::mix(2.0f, 0.5f, StrafeAmount);
 
-	for(int i = LENGTH / 2 + 1; i < LENGTH; i++)
+	for(int i = halfLength + 1; i < LENGTH; i++)
 	{
+		const float ScalePosition = 1.0f - powf(1.0f - (static_cast<float>(i - halfLength) / halfLength), BiasPosition);
+		const float ScaleDirection = 1.0f - powf(1.0f - (static_cast<float>(i - halfLength) / halfLength), BiasDirection);
 
-		const float ScalePosition = (1.0f - powf(1.0f - (static_cast<float>(i - LENGTH / 2) / (LENGTH / 2)), BiasPosition));
-		const float ScaleDirection = (1.0f - powf(1.0f - (static_cast<float>(i - LENGTH / 2) / (LENGTH / 2)), BiasDirection));
-
-		TrajectoryPositionsBlend[i] = TrajectoryPositionsBlend[i - 1] + glm::mix(Positions[i] - Positions[i], TargetVelocity, ScalePosition);
-		glm::vec3 DistanceFromPreviousNode = Positions[i] - Positions[i - 1];
-		//TrajectoryPositionsBlend[i] = TrajectoryPositionsBlend[i-1] + glm::mix(DistanceFromPreviousNode, TargetVelocity, ScalePosition);
+		const glm::vec3 DistanceFromPreviousNode = Positions[i] - Positions[i - 1];
+		TrajectoryPositionsBlend[i] = TrajectoryPositionsBlend[i - 1] + glm::mix(DistanceFromPreviousNode, TargetVelocity, ScalePosition);
 
 		//TODO: Add wall colision for future trajectory - 1519
+		/*
+		for(int j = 0; j < areas->num_walls(); j++)
+		{
+			glm::vec2 trjpoint = glm::vec2(trajectory_positions_blend[i].x, trajectory_positions_blend[i].z);
+			if(glm::length(trjpoint - ((areas->wall_start[j] + areas->wall_stop[j]) / 2.0f)) >
+			   glm::length(areas->wall_start[j] - areas->wall_stop[j]))
+			{
+				continue;
+			}
+			glm::vec2 segpoint = segment_nearest(areas->wall_start[j], areas->wall_stop[j], trjpoint);
+			float segdist = glm::length(segpoint - trjpoint);
+			if(segdist < areas->wall_width[j] + 100.0)
+			{
+				glm::vec2 prjpoint0 = (areas->wall_width[j] + 0.0f) * glm::normalize(trjpoint - segpoint) + segpoint;
+				glm::vec2 prjpoint1 = (areas->wall_width[j] + 100.0f) * glm::normalize(trjpoint - segpoint) + segpoint;
+				glm::vec2 prjpoint = glm::mix(prjpoint0, prjpoint1, glm::clamp((segdist - areas->wall_width[j]) / 100.0f, 0.0f, 1.0f));
+				trajectory_positions_blend[i].x = prjpoint.x;
+				trajectory_positions_blend[i].z = prjpoint.y;
+			}
+		}
+		*/
 
 		Directions[i] = MixDirections(Directions[i], TargetDirection, ScaleDirection);
 
-		/*Heights[i] = Heights[LENGTH / 2];*/
+		Heights[i] = Heights[halfLength];
 
-		GaitStand[i] = GaitStand[LENGTH / 2];
-		GaitWalk[i] = GaitWalk[LENGTH / 2];
-		GaitJog[i] = GaitJog[LENGTH / 2];
-		GaitJump[i] = GaitJump[LENGTH / 2];
-		GaitBump[i] = GaitBump[LENGTH / 2];
-
+		GaitStand[i] = GaitStand[halfLength];
+		GaitWalk[i] = GaitWalk[halfLength];
+		GaitJog[i] = GaitJog[halfLength];
+		GaitJump[i] = GaitJump[halfLength];
+		GaitBump[i] = GaitBump[halfLength];
+		GaitCrouch[i] = GaitCrouch[halfLength];
 	}
 
-	for(int i = LENGTH / 2 + 1; i < LENGTH; i++)
-	{
+	for(int i = halfLength + 1; i < LENGTH; i++)
 		Positions[i] = TrajectoryPositionsBlend[i];
-	}
 }
 
 void UTrajectoryComponent::TickRotations()
 {
 	const auto v = glm::vec3(0.0f, 1.0f, 0.0f);
 	for(int i = 0; i < LENGTH; i++)
-	{
 		Rotations[i] = glm::mat3(glm::rotate(atan2f(Directions[i].x, Directions[i].z), v));
-	}
 }
 
 void UTrajectoryComponent::TickHeights()
 {
+	/*
+	
+	for(int i = Trajectory::LENGTH / 2; i < Trajectory::LENGTH; i++)
+	{
+		trajectory->positions[i].y = heightmap->sample(glm::vec2(trajectory->positions[i].x, trajectory->positions[i].z));
+	}
+
+	trajectory->heights[Trajectory::LENGTH / 2] = 0.0;
+	for(int i = 0; i < Trajectory::LENGTH; i += 10)
+	{
+		trajectory->heights[Trajectory::LENGTH / 2] += (trajectory->positions[i].y / ((Trajectory::LENGTH) / 10));
+	}
+
+	glm::vec3 root_position = glm::vec3(
+		trajectory->positions[Trajectory::LENGTH / 2].x,
+		trajectory->heights[Trajectory::LENGTH / 2],
+		trajectory->positions[Trajectory::LENGTH / 2].z);
+
+	glm::mat3 root_rotation = trajectory->rotations[Trajectory::LENGTH / 2];
+	
+	*/
+
+
+
 	const float DistanceOffsetHeight = 100.f;
 	const float DistanceOffsetFloor = 450.f;
 	//Trajectory height
@@ -316,6 +315,23 @@ void UTrajectoryComponent::TickHeights()
 	//}
 }
 
+void UTrajectoryComponent::ResetTrajectory(const glm::vec3& arg_RootPosition, const glm::mat3& arg_RootRotation)
+{
+	for(int i = 0; i < LENGTH; i++)
+	{
+		Positions[i] = arg_RootPosition;
+		Rotations[i] = arg_RootRotation;
+		Directions[i] = glm::vec3(0, 0, 1);
+		Heights[i] = arg_RootPosition.y;
+		GaitStand[i] = 0.0;
+		GaitWalk[i] = 0.0;
+		GaitJog[i] = 0.0;
+		GaitBump[i] = 0.0;
+		GaitCrouch[i] = 0.0;
+		GaitJump[i] = 0.0;
+	}
+}
+
 void UTrajectoryComponent::UpdatePastTrajectory()
 {
 	for(int i = 0; i < LENGTH / 2; i++)
@@ -331,8 +347,45 @@ void UTrajectoryComponent::UpdatePastTrajectory()
 	}
 }
 
-glm::vec3 UTrajectoryComponent::MixDirections(const glm::vec3 arg_XDirection, const glm::vec3 arg_YDirection,
-											  const float arg_Scalar)
+void UTrajectoryComponent::UpdateCurrentTrajectory(const float StandAmount, Eigen::ArrayXf& PFNN_Yp)
+{
+	const int32 halfLength = UTrajectoryComponent::LENGTH / 2;
+
+	const glm::vec3 TrajectoryUpdate =  Rotations[halfLength] * glm::vec3(PFNN_Yp(0), 0, PFNN_Yp(1)); //TODEBUG: Rot
+	 Positions[halfLength] =  Positions[halfLength] + StandAmount * TrajectoryUpdate;
+	// Directions[halfLength] = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3( GetOwner()->GetActorForwardVector().X,  GetOwner()->GetActorForwardVector().Y, 0.0f));
+	 Directions[halfLength] = glm::mat3(glm::rotate(StandAmount * -PFNN_Yp(2), glm::vec3(0, 1, 0))) *  Directions[halfLength]; //TODEBUG: Rot
+	 Rotations[halfLength] = glm::mat3(glm::rotate(atan2f( Directions[halfLength].x,  Directions[halfLength].z), glm::vec3(0, 1, 0)));
+}
+
+void UTrajectoryComponent::UpdateFutureTrajectory(Eigen::ArrayXf& PFNN_Yp)
+{
+	const int32 halfLength  = UTrajectoryComponent::LENGTH / 2;
+	const int32 W = halfLength / 10;
+	const int32 FirstFutureNode = halfLength + 1;
+	const auto trajectoryFeatureCalc = [&PFNN_Yp, &W](const auto M, const auto i, const auto ft) -> float
+	{
+		const auto iYp = 8 + (W * ft) + (i / 10) - W;
+		return (1 - M) * PFNN_Yp(iYp) + M * PFNN_Yp(iYp + 1);
+	};
+	for(int32 i = FirstFutureNode; i < UTrajectoryComponent::LENGTH; i++)
+	{
+		const float M = fmod((static_cast<float>(i) - (halfLength)) / 10.0, 1.0);
+
+		Positions[i].x = trajectoryFeatureCalc(M, i, 0);
+		Positions[i].z = trajectoryFeatureCalc(M, i, 1);
+		Directions[i].x = trajectoryFeatureCalc(M, i, 2);
+		Directions[i].z = trajectoryFeatureCalc(M, i, 3);
+
+		Positions[i] = (Rotations[halfLength] * Positions[i]) + Positions[halfLength];
+		Directions[i] = glm::normalize(Rotations[halfLength] * Directions[i]);
+		Rotations[i] = glm::mat3(glm::rotate(atan2f(Directions[i].x, Directions[i].z), glm::vec3(0, 1, 0)));
+	}
+}
+
+glm::vec3 UTrajectoryComponent::MixDirections(const glm::vec3 arg_XDirection
+											  , const glm::vec3 arg_YDirection
+											  , const float arg_Scalar)
 {
 	const glm::quat XQuat = glm::angleAxis(atan2f(arg_XDirection.x, arg_XDirection.z), glm::vec3(0.0f, 1.0f, 0.0f));
 	const glm::quat YQuat = glm::angleAxis(atan2f(arg_YDirection.x, arg_YDirection.z), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -346,9 +399,11 @@ void UTrajectoryComponent::LogTrajectoryData(int arg_FrameCount)
 {
 	try
 	{
-		std::ofstream fs;
-		fs.open("UE4_Trajectory.log", std::ios::out);
+		FString RelativePath = FPaths::ProjectDir();
+		const FString FullPath = RelativePath += "PFNN_Trajectory.log";
 
+		std::fstream fs;
+		fs.open(*FullPath, std::ios::out);
 		if(fs.is_open())
 		{
 			fs << "UE4_Implementation" << std::endl;
@@ -428,19 +483,17 @@ void UTrajectoryComponent::TickInput()
 	{
 		UPawnMovementComponent* MovementComponent = PFNNCharacter->GetMovementComponent();
 		glm::vec3 FlippedVelocity = UPFNNHelperFunctions::XZYTranslationToXYZ(MovementComponent->Velocity);
-		CurrentFrameInput = glm::vec2(FlippedVelocity.x, FlippedVelocity.z);
-		CurrentFrameInput = glm::normalize(CurrentFrameInput);
+		CurrentFrameInput = glm::normalize(glm::vec2(FlippedVelocity.x, FlippedVelocity.z));
 	}
 
 	if(glm::abs(CurrentFrameInput.x) + glm::abs(CurrentFrameInput.y) < 0.305f)
-	{
 		CurrentFrameInput = glm::vec2(0.0f);
-	}
 }
 
 void UTrajectoryComponent::CalculateTargetDirection()
 {
 	const auto actorForwardVector = OwnerPawn->GetActorForwardVector();
+
 	glm::vec3 FlippedForward = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(actorForwardVector.X, actorForwardVector.Y, 0.0f));
 	glm::vec3 TrajectoryTargetDirectionNew = glm::normalize(FlippedForward);
 	const glm::mat3 TrajectoryTargetRotation = glm::mat3(glm::rotate(atan2f(TrajectoryTargetDirectionNew.x, TrajectoryTargetDirectionNew.z), glm::vec3(0.0f, 1.0f, 0.0f)));
@@ -449,20 +502,23 @@ void UTrajectoryComponent::CalculateTargetDirection()
 	const float maxWalkSpeed = 500;
 	const float TargetVelocitySpeed = OwnerPawn->GetVelocity().SizeSquared() / (pow(maxWalkSpeed/*OwnerPawn->GetMovementComponent()->GetMaxSpeed()*/, 2) * currentWalkingSpeed); //7.5 is current training walking speed
 
-	const glm::vec3 TrajectoryTargetVelocityNew = TargetVelocitySpeed * (glm::vec3(CurrentFrameInput.x, 0.0f, CurrentFrameInput.y));
+	const glm::vec3 TrajectoryTargetVelocityNew = TargetVelocitySpeed * (TrajectoryTargetRotation * /*glm::vec3(x_vel / 32768.0, 0, y_vel / 32768.0)*/ glm::vec3(CurrentFrameInput.x, 0.0f, CurrentFrameInput.y));
 	TargetVelocity = glm::mix(TargetVelocity, TrajectoryTargetVelocityNew, ExtraVelocitySmooth);
 
+	//StrafeTarget = ((SDL_JoystickGetAxis(stick, GAMEPAD_TRIGGER_L) / 32768.0) + 1.0) / 2.0; // TODO: strafe target
 	StrafeAmount = glm::mix(StrafeAmount, StrafeTarget, ExtraStrafeSmooth);
+
 	const glm::vec3 TrajectoryTargetVelocityDirection = glm::length(TargetVelocity) < 1e-05 ? TargetDirection : glm::normalize(TargetVelocity);
 	TrajectoryTargetDirectionNew = MixDirections(TrajectoryTargetVelocityDirection, TrajectoryTargetDirectionNew, StrafeAmount);
-	TargetDirection = TrajectoryTargetDirectionNew; MixDirections(TargetDirection, TrajectoryTargetDirectionNew, ExtraDirectionSmooth);
+	TargetDirection = MixDirections(TargetDirection, TrajectoryTargetDirectionNew, ExtraDirectionSmooth);
 
+#pragma region Debug
 	if(!bIsTrajectoryDebuggingEnabled)
 		return;
 
+	FVector FlippedCurrentFrameInput = UPFNNHelperFunctions::XYZTranslationToXZY(glm::vec3(CurrentFrameInput.x, 0.0f, CurrentFrameInput.y));
 	FVector FlippedTargetDirectionNew = UPFNNHelperFunctions::XYZTranslationToXZY(TrajectoryTargetDirectionNew);
 	FVector FlippedTargetDirection = UPFNNHelperFunctions::XYZTranslationToXZY(TargetDirection);
-	FVector FlippedCurrentFrameInput = UPFNNHelperFunctions::XYZTranslationToXZY(glm::vec3(CurrentFrameInput.x, 0.0f, CurrentFrameInput.y));
 	FVector FlippedTargetVelocityNew = UPFNNHelperFunctions::XYZTranslationToXZY(TrajectoryTargetVelocityNew);
 	FVector FlippedTargetVelocity = UPFNNHelperFunctions::XYZTranslationToXZY(TargetVelocity);
 
@@ -499,6 +555,7 @@ void UTrajectoryComponent::CalculateTargetDirection()
 	drawDebugArrow(TargetVelocityActor, FlippedTargetVelocityNew * 1000.0f, FColor::Red);
 	drawDebugArrow(TargetVelocityActor, FlippedTargetVelocity * 1000.0f, FColor::Yellow);
 #endif // 0
+#pragma endregion
 }
 
 void UTrajectoryComponent::DrawDebugTrajectory()

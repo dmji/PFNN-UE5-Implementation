@@ -9,55 +9,6 @@
 
 #include "AnimNode_PFNN.generated.h"
 
-//Bone definitions
-/*
-enum
-{
-	//Root
-	JOINT_ROOT = 0,
-
-	//Left leg
-	JOINT_ROOT_L = 1,
-	JOINT_HIP_L = 2,
-	JOINT_KNEE_L = 3,
-	JOINT_HEEL_L = 4,
-	JOINT_TOE_L = 5,
-
-	//Right leg
-	JOINT_ROOT_R = 6,
-	JOINT_HIP_R = 7,
-	JOINT_KNEE_R = 8,
-	JOINT_HEEL_R = 9,
-	JOINT_TOE_R = 10,
-
-	//Back to head
-	JOINT_BACK = 11,
-	JOINT_SPINE_1 = 12,
-	JOINT_SPINE_2 = 13,
-	JOINT_NECK = 14,
-	JOINT_NECK1 = 15,
-	JOINT_HEAD = 16,
-
-	//Right arm
-	JOINT_SHOULDER_L = 17,
-	JOINT_ARM_L = 18,
-	JOINT_FOREARM_L = 19,
-	JOINT_HAND_L = 20,
-	JOINT_FINGER_L = 21,
-	JOINT_INDEX_L = 22,
-	JOINT_THUMB_L = 23,
-
-	//Left arm
-	JOINT_SHOULDER_R = 24,
-	JOINT_ARM_R = 25,
-	JOINT_FOREARM_R = 26,
-	JOINT_HAND_R = 27,
-	JOINT_FINGER_R = 28,
-	JOINT_INDEX_R = 29,
-	JOINT_THUMB_R = 30,
-};
-*/
-
 class UTrajectoryComponent;
 class UPhaseFunctionNeuralNetwork;
 
@@ -95,8 +46,8 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 
 	FAnimNode_PFNN();
 
-	void LoadData(const FAnimationUpdateContext& arg_Context);
-	void LoadXForms(const FAnimationUpdateContext& arg_Context);
+	void LoadData(FAnimInstanceProxy* arg_Context);
+	void LoadXForms(FAnimInstanceProxy* arg_Context);
 	void LoadPFNN();
 
 	void ApplyPFNN();
@@ -107,18 +58,24 @@ struct PFNN_ANIMATIONS_API FAnimNode_PFNN: public FAnimNode_Base
 
 	void LogNetworkData(int arg_FrameCounter);
 
+	void ForwardKinematics();
+
+	void Reset();
+
 private:
 	void DrawDebugSkeleton(const FPoseContext& arg_Context);
 	void DrawDebugBoneVelocity(const FPoseContext& arg_Context);
-	void VisualizePhase();
 
 public:
 	static UPhaseFunctionNeuralNetwork* PFNN;
 	bool bIsPFNNLoaded;
-	int FrameCounter;
+	int32 FrameCounter;
+	bool bNeedToReset;
 
-	//Amount of joints
-	int32 JOINT_NUM = 31;
+	// Joints utils
+	int32 JOINT_NUM;
+	TArray<FName> JointNameByIndex;
+	TArray<int32> JointRange;
 
 	UPROPERTY()
 	class UPFNNAnimInstance* PFNNAnimInstance;
@@ -129,19 +86,19 @@ public:
 	//LOG THESE VARIABLES
 	TArray<glm::vec3> JointPosition;
 	TArray<glm::vec3> JointVelocitys;
-	TArray<glm::vec3> JointRotations;
+	TArray<glm::mat3> JointRotations;
 	
 	TArray<glm::mat4> JointAnimXform;
 	TArray<glm::mat4> JointRestXform;
 	TArray<glm::mat4> JointMeshXform;
 	TArray<glm::mat4> JointGlobalRestXform;
 	TArray<glm::mat4> JointGlobalAnimXform;
-	TArray<int> JointParents;
+	TArray<int32> JointParents;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = PFNN)
 	float Phase;
 
 	TArray<FVector> FinalBoneLocations;
-	TArray<FQuat>	FinalBoneRotations;
+	TArray<FQuat> FinalBoneRotations;
 	//END LOG THESE VARIABLES
 };

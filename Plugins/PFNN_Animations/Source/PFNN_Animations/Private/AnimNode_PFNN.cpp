@@ -17,6 +17,7 @@
 #include <ThirdParty/glm/glm.hpp>
 #include <ThirdParty/glm/gtx/transform.hpp>
 #include <ThirdParty/glm/gtx/euler_angles.hpp>
+#include <ThirdParty/glm/gtx/quaternion.hpp>
 
 #include <fstream>
 
@@ -24,25 +25,31 @@ UPhaseFunctionNeuralNetwork* FAnimNode_PFNN::PFNN = nullptr;
 
 FAnimNode_PFNN::FAnimNode_PFNN()
 	: bIsPFNNLoaded(false)
+	, bNeedToReset(true)
 	, FrameCounter(0)
 	, PFNNAnimInstance(nullptr)
 	, Trajectory(nullptr)
 	, Phase(0)
 {}
 
-void FAnimNode_PFNN::LoadData(const FAnimationUpdateContext& arg_Context)
+void FAnimNode_PFNN::LoadData(FAnimInstanceProxy* arg_Context)
 {
 	LoadXForms(arg_Context);
 	LoadPFNN();
 }
 
-void FAnimNode_PFNN::LoadXForms(const FAnimationUpdateContext& arg_Context)
+void FAnimNode_PFNN::LoadXForms(FAnimInstanceProxy* arg_Context)
 {
 #if 0
-	FBoneContainer& bones = arg_Context.AnimInstanceProxy->GetRequiredBones();
+	FBoneContainer& bones = arg_Context->GetRequiredBones();
+
+	constexpr int32 iStartJoint = 1;
 
 	JOINT_NUM = bones.GetNumBones();
-	JointPosition.SetNum(JOINT_NUM);
+	JointRange.SetNum(nJoint);
+	for(int32 i = 0; i < nJoint; i++)
+		JointRange[i] = i + iStartJoint;
+
 	JointPosition.SetNum(JOINT_NUM);
 	JointVelocitys.SetNum(JOINT_NUM);
 	JointRotations.SetNum(JOINT_NUM);
@@ -54,7 +61,7 @@ void FAnimNode_PFNN::LoadXForms(const FAnimationUpdateContext& arg_Context)
 	JointGlobalAnimXform.SetNum(JOINT_NUM);
 	JointParents.SetNum(JOINT_NUM);
 
-	for(int i = 0; i < JOINT_NUM; i++)
+	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
 		JointParents[i] = bones.GetParentBoneIndex(i);
 
@@ -69,11 +76,15 @@ void FAnimNode_PFNN::LoadXForms(const FAnimationUpdateContext& arg_Context)
 		//	rot[0][2], rot[1][2], rot[2][2], pos[2],
 		//	0, 0, 0, 1));
 	}
-	int i = 1 + 1;
 #else
 	constexpr int32 nJoint = 31;
+	constexpr int32 iStartJoint = 0;
+
 	JOINT_NUM = nJoint;
-	JointPosition.SetNum(JOINT_NUM);
+	JointRange.SetNum(nJoint);
+	for(int32 i = 0; i < nJoint; i++)
+		JointRange[i] = i + iStartJoint;
+
 	JointPosition.SetNum(JOINT_NUM);
 	JointVelocitys.SetNum(JOINT_NUM);
 	JointRotations.SetNum(JOINT_NUM);
@@ -101,10 +112,8 @@ void FAnimNode_PFNN::LoadXForms(const FAnimationUpdateContext& arg_Context)
 	float JointParentsFloat[nJoint];
 	FileHandle->Read(reinterpret_cast<uint8*>(JointParentsFloat), sizeof(JointParentsFloat));
 
-	for(int i = 0; i < JOINT_NUM; i++)
-	{
-		JointParents[i] = static_cast<int>(JointParentsFloat[i]);
-	}
+	for(int32 i = 0; i < JOINT_NUM; i++)
+		JointParents[i - iStartJoint] = static_cast<int>(JointParentsFloat[i - iStartJoint]);
 	delete FileHandle;
 
 
@@ -118,13 +127,17 @@ void FAnimNode_PFNN::LoadXForms(const FAnimationUpdateContext& arg_Context)
 	glm::mat4 JointRestXformTemp[31];
 	FileHandle->Read(reinterpret_cast<uint8*>(JointRestXformTemp), sizeof(JointRestXformTemp));
 
-	for(int i = 0; i < JOINT_NUM; i++)
-	{
-		JointRestXform[i] = glm::transpose(JointRestXformTemp[i]);
-	}
+	for(int32 i = 0; i < JOINT_NUM; i++)
+		JointRestXform[i - iStartJoint] = glm::transpose(JointRestXformTemp[i - iStartJoint]);
 
 	delete FileHandle;
 #endif
+
+	// collect bone names
+	JointNameByIndex.SetNum(JOINT_NUM);
+	const auto& Skeleton = arg_Context->GetSkeleton()->GetReferenceSkeleton();
+	for(int32 i = 0; i < JOINT_NUM; i++)
+		JointNameByIndex[i] = Skeleton.GetBoneName(i);
 }
 
 void FAnimNode_PFNN::LoadPFNN()
@@ -137,8 +150,51 @@ void FAnimNode_PFNN::LoadPFNN()
 	}
 }
 
+inline FQuat CalculateRotation(const glm::mat3& a)
+{
+	FQuat q;
+	float trace = a[0][0] + a[1][1] + a[2][2]; // I removed + 1.0f; see discussion with Ethan
+	if(trace > 0)
+	{// I changed M_EPSILON to 0
+		float s = 0.5f / sqrtf(trace + 1.0f);
+		q.W = 0.25f / s;
+		q.X = (a[2][1] - a[1][2]) * s;
+		q.Y = (a[0][2] - a[2][0]) * s;
+		q.Z = (a[1][0] - a[0][1]) * s;
+	}
+	else
+	{
+		if(a[0][0] > a[1][1] && a[0][0] > a[2][2])
+		{
+			float s = 2.0f * sqrtf(1.0f + a[0][0] - a[1][1] - a[2][2]);
+			q.W = (a[2][1] - a[1][2]) / s;
+			q.X = 0.25f * s;
+			q.Y = (a[0][1] + a[1][0]) / s;
+			q.Z = (a[0][2] + a[2][0]) / s;
+		}
+		else if(a[1][1] > a[2][2])
+		{
+			float s = 2.0f * sqrtf(1.0f + a[1][1] - a[0][0] - a[2][2]);
+			q.W = (a[0][2] - a[2][0]) / s;
+			q.X = (a[0][1] + a[1][0]) / s;
+			q.Y = 0.25f * s;
+			q.Z = (a[1][2] + a[2][1]) / s;
+		}
+		else
+		{
+			float s = 2.0f * sqrtf(1.0f + a[2][2] - a[0][0] - a[1][1]);
+			q.W = (a[1][0] - a[0][1]) / s;
+			q.X = (a[0][2] + a[2][0]) / s;
+			q.Y = (a[1][2] + a[2][1]) / s;
+			q.Z = 0.25f * s;
+		}
+	}
+	return q;
+}
+
 void FAnimNode_PFNN::ApplyPFNN()
 {
+#pragma region pre_render
 	Trajectory->TickTrajectory();
 
 	glm::vec3 RootPosition = Trajectory->GetRootPosition();
@@ -162,7 +218,7 @@ void FAnimNode_PFNN::ApplyPFNN()
 		PFNN->Xp((w * 4) + i / 10) = Trajectory->GaitStand[i];
 		PFNN->Xp((w * 5) + i / 10) = Trajectory->GaitWalk[i];
 		PFNN->Xp((w * 6) + i / 10) = Trajectory->GaitJog[i];
-		PFNN->Xp((w * 7) + i / 10) = 0; //Unused input for crouch?;
+		PFNN->Xp((w * 7) + i / 10) = Trajectory->GaitCrouch[i]; 
 		PFNN->Xp((w * 8) + i / 10) = Trajectory->GaitJump[i];
 		PFNN->Xp((w * 9) + i / 10) = 0; //Unused input
 	}
@@ -170,11 +226,13 @@ void FAnimNode_PFNN::ApplyPFNN()
 	//Input previous join position / velocity / rotations
 	const glm::vec3 PreviousRootPosition = Trajectory->GetPreviousRootPosition();
 	const glm::mat3 PreviousRootRotation = Trajectory->GetPreviousRootRotation();
+	auto InversedPreviousRootRotation = glm::inverse(PreviousRootRotation);
 	const int oP = ((UTrajectoryComponent::LENGTH / 10) * 10);
-	for(int i = 0; i < JOINT_NUM; i++)
+	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
-		const glm::vec3 Position = glm::inverse(PreviousRootRotation) * (JointPosition[i] - PreviousRootPosition);
-		const glm::vec3 Previous = glm::inverse(PreviousRootRotation) * JointVelocitys[i];
+		const glm::vec3 Position = InversedPreviousRootRotation * (JointPosition[i] - PreviousRootPosition);
+		const glm::vec3 Previous = InversedPreviousRootRotation * JointVelocitys[i];
+
 		//Magical numbers are indexes for the PFNN
 		PFNN->Xp(oP + (JOINT_NUM * 3 * 0) + i * 3 + 0) = Position.x;
 		PFNN->Xp(oP + (JOINT_NUM * 3 * 0) + i * 3 + 1) = Position.y;
@@ -232,111 +290,333 @@ void FAnimNode_PFNN::ApplyPFNN()
 		PFNN->Xp(oJ + (w * 0) + (i / 10)) = LeftResultLocation.y * 0.01f;
 		PFNN->Xp(oJ + (w * 1) + (i / 10)) = Trajectory->Positions[i].y * 0.01f;
 		PFNN->Xp(oJ + (w * 2) + (i / 10)) = RightResultLocation.y * 0.01f;
+		/*
+		int o = (((Trajectory::LENGTH) / 10) * 10) + Character::JOINT_NUM * 3 * 2;
+		int w = (Trajectory::LENGTH) / 10;
+		glm::vec3 position_r = trajectory->positions[i] + (trajectory->rotations[i] * glm::vec3(trajectory->width, 0, 0));
+		glm::vec3 position_l = trajectory->positions[i] + (trajectory->rotations[i] * glm::vec3(-trajectory->width, 0, 0));
+
+		pfnn->Xp(o + (w * 0) + (i / 10)) = heightmap->sample(glm::vec2(position_r.x, position_r.z)) - root_position.y;
+		pfnn->Xp(o + (w * 1) + (i / 10)) = trajectory->positions[i].y - root_position.y;
+		pfnn->Xp(o + (w * 2) + (i / 10)) = heightmap->sample(glm::vec2(position_l.x, position_l.z)) - root_position.y;
+		*/
 	}
 
 	PFNN->Predict(Phase);
 
 	//Build local transformation for the joints
 	const int halfLength = UTrajectoryComponent::LENGTH / 2;
-	const int OPosition = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 0;
-	const int OVelocity = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 1;
-	const int ORoation = 8 + ((halfLength / 10) * 4) + JOINT_NUM * 3 * 2;
-	for(int i = 0; i < JOINT_NUM; i++)
+	const int32 OPosition = 8 + (((halfLength) / 10) * 4) + (JOINT_NUM * 3 * 0);
+	const int32 OVelocity = 8 + (((halfLength) / 10) * 4) + (JOINT_NUM * 3 * 1);
+	const int32 ORoation = 8 + (((halfLength) / 10) * 4) + (JOINT_NUM * 3 * 2);
+	const auto PFNN_Yp = PFNN->Yp;
+	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
-		const auto tX = PFNN->Yp(OPosition + i * 3 + 0);
-		const auto tY = PFNN->Yp(OPosition + i * 3 + 1);
-		const auto tZ = PFNN->Yp(OPosition + i * 3 + 2);
-		const auto t = glm::vec3(tX, tY, tZ);
-		const auto ShiftPosition = RootRotation * t;
+		const int32 i3 = i * 3;
+		glm::vec3 Position = RootRotation * glm::vec3(PFNN_Yp(OPosition + i3 + 0), PFNN_Yp(OPosition + i3 + 1), PFNN_Yp(OPosition + i3 + 2)) + RootPosition;
+		glm::vec3 Velocity = RootRotation * glm::vec3(PFNN_Yp(OVelocity + i3 + 0), PFNN_Yp(OVelocity + i3 + 1), PFNN_Yp(OVelocity + i3 + 2));
+		glm::mat3 Rotation = RootRotation * glm::toMat3(QuaternionExpression(glm::vec3(PFNN_Yp(ORoation + i3 + 0), PFNN_Yp(ORoation + i3 + 1), PFNN_Yp(ORoation + i3 + 2))));
 
-		const glm::vec3 Position = ShiftPosition + RootPosition;
-		const glm::vec3 Velocity = (RootRotation * glm::vec3(PFNN->Yp(OVelocity + i * 3 + 0), PFNN->Yp(OVelocity + i * 3 + 1), PFNN->Yp(OVelocity + i * 3 + 2)));
-		const glm::vec3 Rotation = glm::vec3(PFNN->Yp(ORoation + i * 3 + 0), PFNN->Yp(ORoation + i * 3 + 1), PFNN->Yp(ORoation + i * 3 + 2));
+		/*
+		** Blending Between the predicted positions and
+		** the previous positions plus the velocities
+		** smooths out the motion a bit in the case
+		** where the two disagree with each other.
+		*/
 
 		JointPosition[i] = glm::mix(JointPosition[i] + Velocity, Position, Trajectory->ExtraJointSmooth);
 		JointVelocitys[i] = Velocity;
 		JointRotations[i] = Rotation;
+
+		JointGlobalAnimXform[i] = glm::transpose(glm::mat4(
+			Rotation[0][0], Rotation[1][0], Rotation[2][0], Position[0],
+			Rotation[0][1], Rotation[1][1], Rotation[2][1], Position[1],
+			Rotation[0][2], Rotation[1][2], Rotation[2][2], Position[2],
+			0, 0, 0, 1));
+	}
+
+	// Convert to local space ... yes I know this is inefficient.
+	for(int i = 0; i < JOINT_NUM; i++)
+	{
+		if(i == 0)
+			JointAnimXform[i] = JointGlobalAnimXform[i];
+		else
+			JointAnimXform[i] = glm::inverse(JointGlobalAnimXform[JointParents[i]]) * JointGlobalAnimXform[i];
 	}
 
 	//Forward kinematics
-	for(int i = 0; i < JOINT_NUM; i++)
-	{
-		JointGlobalAnimXform[i] = JointAnimXform[i];
-		JointGlobalRestXform[i] = JointRestXform[i];
-		int j = JointParents[i];
-		while(j != -1)
-		{
-			JointGlobalAnimXform[i] = JointAnimXform[j] * JointGlobalAnimXform[i];
-			JointGlobalRestXform[i] = JointRestXform[j] * JointGlobalRestXform[i];
-			j = JointParents[j];
-		}
-		JointMeshXform[i] = JointGlobalAnimXform[i] * glm::inverse(JointGlobalRestXform[i]);
-	}
+	ForwardKinematics();
+#pragma endregion
 
+#pragma region post_render
 	Trajectory->UpdatePastTrajectory();
 
-	Trajectory->Positions[halfLength] = RootPosition;
+	Trajectory->Positions[halfLength] = RootPosition; // TODO: ????
 
 	//Update current trajectory
-	float StandAmount = powf(1.0f - Trajectory->GaitStand[halfLength], 0.25f);
-	
-	const glm::vec3 TrajectoryUpdate = Trajectory->Rotations[halfLength] * glm::vec3(PFNN->Yp(0), 0, PFNN->Yp(1)); //TODEBUG: Rot
-	Trajectory->Positions[halfLength] = Trajectory->Positions[halfLength] + StandAmount * TrajectoryUpdate;
-	//Trajectory->Directions[halfLength] = UPFNNHelperFunctions::XZYTranslationToXYZ(glm::vec3(Trajectory->GetOwner()->GetActorForwardVector().X, Trajectory->GetOwner()->GetActorForwardVector().Y, 0.0f));
-	Trajectory->Directions[halfLength] = glm::mat3(glm::rotate(StandAmount * -PFNN->Yp(2), glm::vec3(0, 1, 0))) * Trajectory->Directions[halfLength]; //TODEBUG: Rot
-	Trajectory->Rotations[halfLength] = glm::mat3(glm::rotate(atan2f(Trajectory->Directions[halfLength].x, Trajectory->Directions[halfLength].z), glm::vec3(0, 1, 0)));
+	const float StandAmount = powf(1.0f - Trajectory->GaitStand[halfLength], 0.25f);
+	Trajectory->UpdateCurrentTrajectory(StandAmount, PFNN->Yp);
 
-	//TODO: Add wall logic
-
-	//Update future trajectory
-	const int32 W = halfLength / 10;
-	const int32 FirstFutureNode = halfLength + 1;
-	const auto trajectoryFeatureCalc = [&](const auto M, const auto i, const auto ft) 
-	{ 
-		const auto iYp = 8 + (W * ft) + (i / 10) - W;
-		return (1 - M) * PFNN->Yp(iYp) + M * PFNN->Yp(iYp + 1);
-	};
-	for(int32 i = FirstFutureNode; i < UTrajectoryComponent::LENGTH; i++)
 	{
-		const float M = fmod((static_cast<float>(i) - (halfLength)) / 10.0, 1.0);
-
-		Trajectory->Positions[i].x = trajectoryFeatureCalc(M, i, 0);
-		Trajectory->Positions[i].z = trajectoryFeatureCalc(M, i, 1);
-		Trajectory->Directions[i].x = trajectoryFeatureCalc(M, i, 2);
-		Trajectory->Directions[i].z = trajectoryFeatureCalc(M, i, 3);
-
-		Trajectory->Positions[i] = (Trajectory->Rotations[halfLength] * Trajectory->Positions[i]) + Trajectory->Positions[halfLength];
-		Trajectory->Directions[i] = glm::normalize(Trajectory->Rotations[halfLength] * Trajectory->Directions[i]);
-		Trajectory->Rotations[i] = glm::mat3(glm::rotate(atan2f(Trajectory->Directions[i].x, Trajectory->Directions[i].z), glm::vec3(0, 1, 0)));
+		//TODO: Add wall logic
+		/* Collide with walls */
+		//for(int j = 0; j < areas->num_walls(); j++)
+		//{
+		//	glm::vec2 trjpoint = glm::vec2(trajectory->positions[Trajectory::LENGTH / 2].x, trajectory->positions[Trajectory::LENGTH / 2].z);
+		//	glm::vec2 segpoint = segment_nearest(areas->wall_start[j], areas->wall_stop[j], trjpoint);
+		//	float segdist = glm::length(segpoint - trjpoint);
+		//	if(segdist < areas->wall_width[j] + 100.0)
+		//	{
+		//		glm::vec2 prjpoint0 = (areas->wall_width[j] + 0.0f) * glm::normalize(trjpoint - segpoint) + segpoint;
+		//		glm::vec2 prjpoint1 = (areas->wall_width[j] + 100.0f) * glm::normalize(trjpoint - segpoint) + segpoint;
+		//		glm::vec2 prjpoint = glm::mix(prjpoint0, prjpoint1, glm::clamp((segdist - areas->wall_width[j]) / 100.0f, 0.0f, 1.0f));
+		//		trajectory->positions[Trajectory::LENGTH / 2].x = prjpoint.x;
+		//		trajectory->positions[Trajectory::LENGTH / 2].z = prjpoint.y;
+		//	}
+		//}
 	}
 
-	// Final Bone Transformation
-	FinalBoneLocations.Empty();
-	FinalBoneRotations.Empty();
+	Trajectory->UpdateFutureTrajectory(PFNN->Yp);
 
-	FinalBoneLocations.SetNum(JOINT_NUM);
-	FinalBoneRotations.SetNum(JOINT_NUM);
-	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
-		FinalBoneLocations[i] = UPFNNHelperFunctions::XYZTranslationToXZY(JointPosition[i]);
+		// TODO: ???
+		// Final Bone Transformation
+		FinalBoneLocations.Empty();
+		FinalBoneRotations.Empty();
 
-		FVector UnrealJointRotation = UPFNNHelperFunctions::XYZTranslationToXZY(JointRotations[i]);
-		FinalBoneRotations[i] = FQuat(FQuat::MakeFromEuler(FVector::RadiansToDegrees(UnrealJointRotation)));
+		FinalBoneLocations.SetNum(JOINT_NUM);
+		FinalBoneRotations.SetNum(JOINT_NUM);
+		for(int32 i = 0; i < JOINT_NUM; i++)
+		{
+			FinalBoneLocations[i] = UPFNNHelperFunctions::XYZTranslationToXZY(JointPosition[i]);
+
+
+			//FVector UnrealJointRotation = UPFNNHelperFunctions::XYZTranslationToXZY(JointRotations[i]);
+			FQuat UnrealJointRotation = CalculateRotation(JointRotations[i]);
+			FinalBoneRotations[i] = FQuat(FQuat::MakeFromEuler(FVector::RadiansToDegrees(UnrealJointRotation.Vector())));
+		}
 	}
 
 	//Phase update
 	Phase = fmod(Phase + (StandAmount * 0.9f + 0.1f) * 2.0f * PI * PFNN->Yp(3), 2.0f * PI);
+#pragma endregion
+
+	// VisualizePhase
+	if(GEngine)
+		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("Phase is %f"), Phase));
 	GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("Phase = %f, Stand Amount =  %f, PFNN.Yp(3) = %f"), Phase, StandAmount, PFNN->Yp(3)));
 	UE_LOG(LogTemp, Warning, TEXT("Phase = %f, Stand Amount =  %f, PFNN.Yp(3) = %f"), Phase, StandAmount, PFNN->Yp(3));
 
+/*
+	// Perform IK (enter this block at your own risk...) 
+	if(options->enable_ik)
+	{
+		// Get Weights
+		glm::vec4 ik_weight = glm::vec4(pfnn->Yp(4 + 0), pfnn->Yp(4 + 1), pfnn->Yp(4 + 2), pfnn->Yp(4 + 3));
+
+		glm::vec3 key_hl = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_L][3]);
+		glm::vec3 key_tl = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_L][3]);
+		glm::vec3 key_hr = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_R][3]);
+		glm::vec3 key_tr = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_R][3]);
+
+		key_hl = glm::mix(key_hl, ik->position[IK::HL], ik->lock[IK::HL]);
+		key_tl = glm::mix(key_tl, ik->position[IK::TL], ik->lock[IK::TL]);
+		key_hr = glm::mix(key_hr, ik->position[IK::HR], ik->lock[IK::HR]);
+		key_tr = glm::mix(key_tr, ik->position[IK::TR], ik->lock[IK::TR]);
+
+		ik->height[IK::HL] = glm::mix(ik->height[IK::HL], heightmap->sample(glm::vec2(key_hl.x, key_hl.z)) + ik->heel_height, ik->smoothness);
+		ik->height[IK::TL] = glm::mix(ik->height[IK::TL], heightmap->sample(glm::vec2(key_tl.x, key_tl.z)) + ik->toe_height, ik->smoothness);
+		ik->height[IK::HR] = glm::mix(ik->height[IK::HR], heightmap->sample(glm::vec2(key_hr.x, key_hr.z)) + ik->heel_height, ik->smoothness);
+		ik->height[IK::TR] = glm::mix(ik->height[IK::TR], heightmap->sample(glm::vec2(key_tr.x, key_tr.z)) + ik->toe_height, ik->smoothness);
+
+		key_hl.y = glm::max(key_hl.y, ik->height[IK::HL]);
+		key_tl.y = glm::max(key_tl.y, ik->height[IK::TL]);
+		key_hr.y = glm::max(key_hr.y, ik->height[IK::HR]);
+		key_tr.y = glm::max(key_tr.y, ik->height[IK::TR]);
+
+		// Rotate Hip / Knee
+
+		{
+			glm::vec3 hip_l = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HIP_L][3]);
+			glm::vec3 knee_l = glm::vec3(character->joint_global_anim_xform[Character::JOINT_KNEE_L][3]);
+			glm::vec3 heel_l = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_L][3]);
+
+			glm::vec3 hip_r = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HIP_R][3]);
+			glm::vec3 knee_r = glm::vec3(character->joint_global_anim_xform[Character::JOINT_KNEE_R][3]);
+			glm::vec3 heel_r = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_R][3]);
+
+			ik->two_joint(hip_l, knee_l, heel_l, key_hl, 1.0,
+						  character->joint_global_anim_xform[Character::JOINT_ROOT_L],
+						  character->joint_global_anim_xform[Character::JOINT_HIP_L],
+						  character->joint_global_anim_xform[Character::JOINT_HIP_L],
+						  character->joint_global_anim_xform[Character::JOINT_KNEE_L],
+						  character->joint_anim_xform[Character::JOINT_HIP_L],
+						  character->joint_anim_xform[Character::JOINT_KNEE_L]);
+
+			ik->two_joint(hip_r, knee_r, heel_r, key_hr, 1.0,
+						  character->joint_global_anim_xform[Character::JOINT_ROOT_R],
+						  character->joint_global_anim_xform[Character::JOINT_HIP_R],
+						  character->joint_global_anim_xform[Character::JOINT_HIP_R],
+						  character->joint_global_anim_xform[Character::JOINT_KNEE_R],
+						  character->joint_anim_xform[Character::JOINT_HIP_R],
+						  character->joint_anim_xform[Character::JOINT_KNEE_R]);
+
+			character->forward_kinematics();
+		}
+
+		// Rotate Heel 
+		{
+			const float heel_max_bend_s = 4;
+			const float heel_max_bend_u = 4;
+			const float heel_max_bend_d = 4;
+
+			glm::vec4 ik_toe_pos_blend = glm::clamp(ik_weight * 2.5f, 0.0f, 1.0f);
+
+			glm::vec3 heel_l = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_L][3]);
+			glm::vec4 side_h0_l = character->joint_global_anim_xform[Character::JOINT_HEEL_L] * glm::vec4(10, 0, 0, 1);
+			glm::vec4 side_h1_l = character->joint_global_anim_xform[Character::JOINT_HEEL_L] * glm::vec4(-10, 0, 0, 1);
+			glm::vec3 side0_l = glm::vec3(side_h0_l) / side_h0_l.w;
+			glm::vec3 side1_l = glm::vec3(side_h1_l) / side_h1_l.w;
+			glm::vec3 floor_l = key_tl;
+
+			side0_l.y = glm::clamp(heightmap->sample(glm::vec2(side0_l.x, side0_l.z)) + ik->toe_height, heel_l.y - heel_max_bend_s, heel_l.y + heel_max_bend_s);
+			side1_l.y = glm::clamp(heightmap->sample(glm::vec2(side1_l.x, side1_l.z)) + ik->toe_height, heel_l.y - heel_max_bend_s, heel_l.y + heel_max_bend_s);
+			floor_l.y = glm::clamp(floor_l.y, heel_l.y - heel_max_bend_d, heel_l.y + heel_max_bend_u);
+
+			glm::vec3 targ_z_l = glm::normalize(floor_l - heel_l);
+			glm::vec3 targ_x_l = glm::normalize(side0_l - side1_l);
+			glm::vec3 targ_y_l = glm::normalize(glm::cross(targ_x_l, targ_z_l));
+			targ_x_l = glm::cross(targ_z_l, targ_y_l);
+
+			character->joint_anim_xform[Character::JOINT_HEEL_L] = mix_transforms(
+				character->joint_anim_xform[Character::JOINT_HEEL_L],
+				glm::inverse(character->joint_global_anim_xform[Character::JOINT_KNEE_L]) * glm::mat4(
+					glm::vec4(targ_x_l, 0),
+					glm::vec4(-targ_y_l, 0),
+					glm::vec4(targ_z_l, 0),
+					glm::vec4(heel_l, 1)), ik_toe_pos_blend.y);
+
+			glm::vec3 heel_r = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_R][3]);
+			glm::vec4 side_h0_r = character->joint_global_anim_xform[Character::JOINT_HEEL_R] * glm::vec4(10, 0, 0, 1);
+			glm::vec4 side_h1_r = character->joint_global_anim_xform[Character::JOINT_HEEL_R] * glm::vec4(-10, 0, 0, 1);
+			glm::vec3 side0_r = glm::vec3(side_h0_r) / side_h0_r.w;
+			glm::vec3 side1_r = glm::vec3(side_h1_r) / side_h1_r.w;
+			glm::vec3 floor_r = key_tr;
+
+			side0_r.y = glm::clamp(heightmap->sample(glm::vec2(side0_r.x, side0_r.z)) + ik->toe_height, heel_r.y - heel_max_bend_s, heel_r.y + heel_max_bend_s);
+			side1_r.y = glm::clamp(heightmap->sample(glm::vec2(side1_r.x, side1_r.z)) + ik->toe_height, heel_r.y - heel_max_bend_s, heel_r.y + heel_max_bend_s);
+			floor_r.y = glm::clamp(floor_r.y, heel_r.y - heel_max_bend_d, heel_r.y + heel_max_bend_u);
+
+			glm::vec3 targ_z_r = glm::normalize(floor_r - heel_r);
+			glm::vec3 targ_x_r = glm::normalize(side0_r - side1_r);
+			glm::vec3 targ_y_r = glm::normalize(glm::cross(targ_z_r, targ_x_r));
+			targ_x_r = glm::cross(targ_z_r, targ_y_r);
+
+			character->joint_anim_xform[Character::JOINT_HEEL_R] = mix_transforms(
+				character->joint_anim_xform[Character::JOINT_HEEL_R],
+				glm::inverse(character->joint_global_anim_xform[Character::JOINT_KNEE_R]) * glm::mat4(
+					glm::vec4(-targ_x_r, 0),
+					glm::vec4(targ_y_r, 0),
+					glm::vec4(targ_z_r, 0),
+					glm::vec4(heel_r, 1)), ik_toe_pos_blend.w);
+
+			character->forward_kinematics();
+		}
+
+		// Rotate Toe
+		{
+			const float toe_max_bend_d = 0;
+			const float toe_max_bend_u = 10;
+
+			glm::vec4 ik_toe_rot_blend = glm::clamp(ik_weight * 2.5f, 0.0f, 1.0f);
+
+			glm::vec3 toe_l = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_L][3]);
+			glm::vec4 fwrd_h_l = character->joint_global_anim_xform[Character::JOINT_TOE_L] * glm::vec4(0, 0, 10, 1);
+			glm::vec4 side_h0_l = character->joint_global_anim_xform[Character::JOINT_TOE_L] * glm::vec4(10, 0, 0, 1);
+			glm::vec4 side_h1_l = character->joint_global_anim_xform[Character::JOINT_TOE_L] * glm::vec4(-10, 0, 0, 1);
+			glm::vec3 fwrd_l = glm::vec3(fwrd_h_l) / fwrd_h_l.w;
+			glm::vec3 side0_l = glm::vec3(side_h0_l) / side_h0_l.w;
+			glm::vec3 side1_l = glm::vec3(side_h1_l) / side_h1_l.w;
+
+			fwrd_l.y = glm::clamp(heightmap->sample(glm::vec2(fwrd_l.x, fwrd_l.z)) + ik->toe_height, toe_l.y - toe_max_bend_d, toe_l.y + toe_max_bend_u);
+			side0_l.y = glm::clamp(heightmap->sample(glm::vec2(side0_l.x, side0_l.z)) + ik->toe_height, toe_l.y - toe_max_bend_d, toe_l.y + toe_max_bend_u);
+			side1_l.y = glm::clamp(heightmap->sample(glm::vec2(side0_l.x, side1_l.z)) + ik->toe_height, toe_l.y - toe_max_bend_d, toe_l.y + toe_max_bend_u);
+
+			glm::vec3 side_l = glm::normalize(side0_l - side1_l);
+			fwrd_l = glm::normalize(fwrd_l - toe_l);
+			glm::vec3 upwr_l = glm::normalize(glm::cross(side_l, fwrd_l));
+			side_l = glm::cross(fwrd_l, upwr_l);
+
+			character->joint_anim_xform[Character::JOINT_TOE_L] = mix_transforms(
+				character->joint_anim_xform[Character::JOINT_TOE_L],
+				glm::inverse(character->joint_global_anim_xform[Character::JOINT_HEEL_L]) * glm::mat4(
+					glm::vec4(side_l, 0),
+					glm::vec4(-upwr_l, 0),
+					glm::vec4(fwrd_l, 0),
+					glm::vec4(toe_l, 1)), ik_toe_rot_blend.y);
+
+			glm::vec3 toe_r = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_R][3]);
+			glm::vec4 fwrd_h_r = character->joint_global_anim_xform[Character::JOINT_TOE_R] * glm::vec4(0, 0, 10, 1);
+			glm::vec4 side_h0_r = character->joint_global_anim_xform[Character::JOINT_TOE_R] * glm::vec4(10, 0, 0, 1);
+			glm::vec4 side_h1_r = character->joint_global_anim_xform[Character::JOINT_TOE_R] * glm::vec4(-10, 0, 0, 1);
+			glm::vec3 fwrd_r = glm::vec3(fwrd_h_r) / fwrd_h_r.w;
+			glm::vec3 side0_r = glm::vec3(side_h0_r) / side_h0_r.w;
+			glm::vec3 side1_r = glm::vec3(side_h1_r) / side_h1_r.w;
+
+			fwrd_r.y = glm::clamp(heightmap->sample(glm::vec2(fwrd_r.x, fwrd_r.z)) + ik->toe_height, toe_r.y - toe_max_bend_d, toe_r.y + toe_max_bend_u);
+			side0_r.y = glm::clamp(heightmap->sample(glm::vec2(side0_r.x, side0_r.z)) + ik->toe_height, toe_r.y - toe_max_bend_d, toe_r.y + toe_max_bend_u);
+			side1_r.y = glm::clamp(heightmap->sample(glm::vec2(side1_r.x, side1_r.z)) + ik->toe_height, toe_r.y - toe_max_bend_d, toe_r.y + toe_max_bend_u);
+
+			glm::vec3 side_r = glm::normalize(side0_r - side1_r);
+			fwrd_r = glm::normalize(fwrd_r - toe_r);
+			glm::vec3 upwr_r = glm::normalize(glm::cross(side_r, fwrd_r));
+			side_r = glm::cross(fwrd_r, upwr_r);
+
+			character->joint_anim_xform[Character::JOINT_TOE_R] = mix_transforms(
+				character->joint_anim_xform[Character::JOINT_TOE_R],
+				glm::inverse(character->joint_global_anim_xform[Character::JOINT_HEEL_R]) * glm::mat4(
+					glm::vec4(side_r, 0),
+					glm::vec4(-upwr_r, 0),
+					glm::vec4(fwrd_r, 0),
+					glm::vec4(toe_r, 1)), ik_toe_rot_blend.w);
+
+			character->forward_kinematics();
+		}
+
+		// Update Locks 
+		if((ik->lock[IK::HL] == 0.0) && (ik_weight.y >= ik->threshold))
+		{
+			ik->lock[IK::HL] = 1.0; ik->position[IK::HL] = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_L][3]);
+			ik->lock[IK::TL] = 1.0; ik->position[IK::TL] = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_L][3]);
+		}
+
+		if((ik->lock[IK::HR] == 0.0) && (ik_weight.w >= ik->threshold))
+		{
+			ik->lock[IK::HR] = 1.0; ik->position[IK::HR] = glm::vec3(character->joint_global_anim_xform[Character::JOINT_HEEL_R][3]);
+			ik->lock[IK::TR] = 1.0; ik->position[IK::TR] = glm::vec3(character->joint_global_anim_xform[Character::JOINT_TOE_R][3]);
+		}
+
+		if((ik->lock[IK::HL] > 0.0) && (ik_weight.y < ik->threshold))
+		{
+			ik->lock[IK::HL] = glm::clamp(ik->lock[IK::HL] - ik->fade, 0.0f, 1.0f);
+			ik->lock[IK::TL] = glm::clamp(ik->lock[IK::TL] - ik->fade, 0.0f, 1.0f);
+		}
+
+		if((ik->lock[IK::HR] > 0.0) && (ik_weight.w < ik->threshold))
+		{
+			ik->lock[IK::HR] = glm::clamp(ik->lock[IK::HR] - ik->fade, 0.0f, 1.0f);
+			ik->lock[IK::TR] = glm::clamp(ik->lock[IK::TR] - ik->fade, 0.0f, 1.0f);
+		}
+	}
+*/
+
+	// Log first frame data
 	FrameCounter++;
 	if(FrameCounter == 1)
 	{
 		Trajectory->LogTrajectoryData(FrameCounter);
 		LogNetworkData(FrameCounter);
 	}
-
-	VisualizePhase();
 }
 
 glm::quat FAnimNode_PFNN::QuaternionExpression(const glm::vec3 arg_Vector)
@@ -378,6 +658,14 @@ void FAnimNode_PFNN::Initialize_AnyThread(const FAnimationInitializeContext& arg
 	PFNNAnimInstance = GetPFNNInstanceFromContext(arg_Context);
 	if(!PFNNAnimInstance)
 		UE_LOG(LogTemp, Error, TEXT("PFNN Animation node should only be added to a PFNNAnimInstance child class!"));
+
+	if(!bIsPFNNLoaded)
+		LoadData(arg_Context.AnimInstanceProxy);
+
+	if(PFNNAnimInstance)
+		Trajectory = PFNNAnimInstance->GetOwningTrajectoryComponent();
+
+	bNeedToReset = true;
 }
 
 void FAnimNode_PFNN::Update_AnyThread(const FAnimationUpdateContext& arg_Context)
@@ -385,13 +673,17 @@ void FAnimNode_PFNN::Update_AnyThread(const FAnimationUpdateContext& arg_Context
 	FAnimNode_Base::Update_AnyThread(arg_Context);
 
 	if(!bIsPFNNLoaded)
-		LoadData(arg_Context);
+		LoadData(arg_Context.AnimInstanceProxy);
 
 	if(PFNNAnimInstance)
 		Trajectory = PFNNAnimInstance->GetOwningTrajectoryComponent();
 
+
 	if(Trajectory != nullptr && bIsPFNNLoaded)
 	{
+		if(bNeedToReset)
+			Reset();
+
 		ensure(PFNN != nullptr);
 		ApplyPFNN();
 	}
@@ -401,9 +693,10 @@ void FAnimNode_PFNN::Evaluate_AnyThread(FPoseContext& arg_Output)
 {
 	if(!bIsPFNNLoaded)
 		return;
-
+	
 	const FTransform& CharacterTransform = arg_Output.AnimInstanceProxy->GetActorTransform();
-	if(FinalBoneLocations.Num() < JOINT_NUM || FinalBoneRotations.Num() < JOINT_NUM)
+	if(FinalBoneLocations.Num() < JOINT_NUM 
+	   || FinalBoneRotations.Num() < JOINT_NUM)
 	{
 		UE_LOG(PFNN_Logging, Error, TEXT("PFNN results were not properly applied!"));
 		return;
@@ -446,12 +739,68 @@ void FAnimNode_PFNN::Evaluate_AnyThread(FPoseContext& arg_Output)
 #endif
 }
 
+void FAnimNode_PFNN::ForwardKinematics()
+{
+	for(int32 i = 0; i < JOINT_NUM; i++)
+	{
+		JointGlobalAnimXform[i] = JointAnimXform[i];
+		JointGlobalRestXform[i] = JointRestXform[i];
+		int j = JointParents[i];
+		while(j != -1)
+		{
+			JointGlobalAnimXform[i] = JointAnimXform[j] * JointGlobalAnimXform[i];
+			JointGlobalRestXform[i] = JointRestXform[j] * JointGlobalRestXform[i];
+			j = JointParents[j];
+		}
+		JointMeshXform[i] = JointGlobalAnimXform[i] * glm::inverse(JointGlobalRestXform[i]);
+	}
+}
+
+void FAnimNode_PFNN::Reset()
+{
+	Eigen::ArrayXf Yp = PFNN->Ymean;
+
+	const auto posMesh = PFNNAnimInstance->GetSkelMeshComponent()->GetComponentLocation();
+	glm::vec3 root_position = glm::vec3(posMesh.X, posMesh.Y, posMesh.Z);
+	glm::mat3 root_rotation = glm::identity<glm::mat3>();
+
+	Trajectory->ResetTrajectory(root_position, root_rotation);
+	for(int32 i = 0; i < JOINT_NUM; i++)
+	{
+		const int32 opos = 8 + (((Trajectory->LENGTH / 2) / 10) * 4) + (JOINT_NUM * 3 * 0);
+		const int32 ovel = 8 + (((Trajectory->LENGTH / 2) / 10) * 4) + (JOINT_NUM * 3 * 1);
+		const int32 orot = 8 + (((Trajectory->LENGTH / 2) / 10) * 4) + (JOINT_NUM * 3 * 2);
+
+		glm::vec3 pos = root_rotation * glm::vec3(Yp(opos + i * 3 + 0), Yp(opos + i * 3 + 1), Yp(opos + i * 3 + 2)) + root_position;
+		glm::vec3 vel = root_rotation * glm::vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2));
+		glm::mat3 rot = root_rotation * glm::toMat3(QuaternionExpression(glm::vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2))));
+
+		JointPosition[i] = pos;
+		JointVelocitys[i] = vel;
+		JointRotations[i] = rot;
+	}
+
+	Phase = 0.0;
+
+	/*
+	// reset IK position 
+	ik->position[IK::HL] = glm::vec3(0, 0, 0); ik->lock[IK::HL] = 0; ik->height[IK::HL] = root_position.y;
+	ik->position[IK::HR] = glm::vec3(0, 0, 0); ik->lock[IK::HR] = 0; ik->height[IK::HR] = root_position.y;
+	ik->position[IK::TL] = glm::vec3(0, 0, 0); ik->lock[IK::TL] = 0; ik->height[IK::TL] = root_position.y;
+	ik->position[IK::TR] = glm::vec3(0, 0, 0); ik->lock[IK::TR] = 0; ik->height[IK::TR] = root_position.y;
+	*/
+	bNeedToReset = false;
+}
+
 void FAnimNode_PFNN::LogNetworkData(int arg_FrameCounter)
 {
 	try
 	{
+		FString RelativePath = FPaths::ProjectDir();
+		const FString FullPath = RelativePath += "PFNN_Network.log";
+
 		std::fstream fs;
-		fs.open("UE4_Network.log", std::ios::out);
+		fs.open(*FullPath, std::ios::out);
 		if(!fs.is_open())
 			throw std::exception();
 
@@ -460,7 +809,7 @@ void FAnimNode_PFNN::LogNetworkData(int arg_FrameCounter)
 
 		fs << "Current Phase: " << Phase << std::endl << std::endl;
 		fs << "Joints" << std::endl;
-		for(size_t i = 0; i < JOINT_NUM; i++)
+		for(int32 i = 0; i < JOINT_NUM; i++)
 		{
 			fs << "Joint[" << i << "]" << std::endl;
 			fs << "	JointPosition: " << JointPosition[i].x << "X, " << JointPosition[i].y << "Y, " << JointPosition[i].z << "Z" << std::endl;
@@ -523,51 +872,29 @@ void FAnimNode_PFNN::DrawDebugSkeleton(const FPoseContext& arg_Context)
 	if(!Character || !Character->HasDebuggingEnabled())
 		return;
 
-	const FTransform& CharacterTransform = arg_Context.AnimInstanceProxy->GetActorTransform();
-	FBoneContainer Bones = arg_Context.Pose.GetBoneContainer();
-
-	const auto charLocation = CharacterTransform.GetLocation();
+	const auto& Mesh = Character->GetMesh();
+	auto& AnimInstanceProxy = arg_Context.AnimInstanceProxy;
 	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
+		const FRotator BoneRotator = FRotator(FinalBoneRotations[i]);
 		const FCompactPoseBoneIndex CurrentBoneIndex(i);
+		const FVector CurrentBoneLocation = Mesh->GetBoneLocation(JointNameByIndex[i], EBoneSpaces::WorldSpace);
+		const FVector ParentBoneLocation = !CurrentBoneIndex.IsRootBone() 
+			? Mesh->GetBoneLocation(JointNameByIndex[JointParents[i]], EBoneSpaces::WorldSpace) 
+			: CurrentBoneLocation;
 
-		FVector CurrentBoneLocation = arg_Context.Pose[CurrentBoneIndex].GetLocation();
-		FVector ParentBoneLocation = CurrentBoneLocation;
+		// draw pivot
+		AnimInstanceProxy->AnimDrawDebugCoordinateSystem(CurrentBoneLocation, BoneRotator, 10.0f, false, -1.0f, 0.2);
+		
+		// draw line from current bone to parent bone
+		AnimInstanceProxy->AnimDrawDebugLine(CurrentBoneLocation, ParentBoneLocation, FColor::White, false, -1.f, 1.0f);
 
-		if(!CurrentBoneIndex.IsRootBone())
-		{
-			FCompactPoseBoneIndex ParentBoneIndex(Bones.GetParentBoneIndex(CurrentBoneIndex));
-			if(ParentBoneIndex.GetInt() != -1)
-			{
-				ParentBoneLocation = arg_Context.Pose[ParentBoneIndex].GetLocation();
-			}
+		// draw bone vertex
+		AnimInstanceProxy->AnimDrawDebugSphere(CurrentBoneLocation, 2.f, 8, FColor::Green, false, -1.0f);
 
-			while(ParentBoneIndex.GetInt() != -1)
-			{
-				CurrentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
-				ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-			}
-
-			ParentBoneIndex = Bones.GetParentBoneIndex(CurrentBoneIndex);
-			if(ParentBoneIndex.GetInt() != -1)
-			{
-				ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-
-				while(ParentBoneIndex.GetInt() != -1)
-				{
-					ParentBoneLocation += arg_Context.Pose[ParentBoneIndex].GetLocation();
-					ParentBoneIndex = Bones.GetParentBoneIndex(ParentBoneIndex);
-				}
-			}
-		}
-
-		FRotator BoneRotator = FRotator(FinalBoneRotations[i]);
-		arg_Context.AnimInstanceProxy->AnimDrawDebugCoordinateSystem(CurrentBoneLocation + charLocation, BoneRotator, 10.0f, false, -1.0f, 0.2);
-		arg_Context.AnimInstanceProxy->AnimDrawDebugSphere(CurrentBoneLocation + charLocation, 2.5f, 12, FColor::Green, false, -1.0f);
-		arg_Context.AnimInstanceProxy->AnimDrawDebugLine(CurrentBoneLocation + charLocation, ParentBoneLocation + charLocation, FColor::White, false, -1, 2.0f);
-
-		if(Trajectory->GetOwner()->GetWorld() != nullptr)
-			DrawDebugString(Trajectory->GetOwner()->GetWorld(), CurrentBoneLocation + charLocation, FString::FromInt(i), static_cast<AActor*>(0), FColor::Red, 0.01f, false, 2.0f);
+		// draw bone vertex text
+		if(const auto& world = Character->GetWorld())
+			DrawDebugString(world, CurrentBoneLocation, FString::FromInt(i), nullptr, FColor::Red, -1.0f, false, 1.0f);
 	}
 }
 
@@ -580,16 +907,12 @@ void FAnimNode_PFNN::DrawDebugBoneVelocity(const FPoseContext& arg_Context)
 	if(!Character || !Character->HasDebuggingEnabled())
 		return;
 
+	const FTransform& CharacterTransform = arg_Context.AnimInstanceProxy->GetActorTransform();
+	const auto charLocation = CharacterTransform.GetLocation();
 	for(int32 i = 0; i < JOINT_NUM; i++)
 	{
 		const auto JointPos = FVector(JointPosition[i].x, JointPosition[i].z, JointPosition[i].y);
 		const auto JointVelocity = FVector(JointVelocitys[i].x, JointVelocitys[i].z, JointVelocitys[i].y);
-		arg_Context.AnimInstanceProxy->AnimDrawDebugLine(JointPos, JointPos - 10 * JointVelocity, FColor::Yellow, false, -1, 0.5f);
+		arg_Context.AnimInstanceProxy->AnimDrawDebugLine(charLocation + JointPos, charLocation + JointPos - 10 * JointVelocity, FColor::Yellow, false, -1, 0.5f);
 	}
-}
-
-void FAnimNode_PFNN::VisualizePhase()
-{
-	if(GEngine)
-		GEngine->AddOnScreenDebugMessage(-1, 0.0f, FColor::Yellow, FString::Printf(TEXT("Phase is %f"), Phase));
 }

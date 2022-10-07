@@ -59,6 +59,7 @@ void UPFNNDataContainer::LoadNetworkData()
 
 	int32 size_weights = 0;
 	double index_scale = 1.0;
+	const auto LoadingMode = GetDefault<UPhaseFunctionNeuralNetwork>()->Mode;
 	switch(LoadingMode)
 	{
 	case EPFNNMode::PM_Constant:
@@ -98,6 +99,12 @@ void UPFNNDataContainer::LoadNetworkData()
 
 void UPFNNDataContainer::GetNetworkData(UPhaseFunctionNeuralNetwork& arg_PFNN)
 {
+	if(!arg_PFNN.W0.IsEmpty())
+	{
+		arg_PFNN.W0.Empty(); arg_PFNN.W1.Empty(); arg_PFNN.W2.Empty();
+		arg_PFNN.b0.Empty(); arg_PFNN.b1.Empty(); arg_PFNN.b2.Empty();
+	}
+
 	arg_PFNN.Xmean = this->Xmean;
 	arg_PFNN.Xstd = this->Xstd;
 	arg_PFNN.Ymean = this->Ymean;

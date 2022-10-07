@@ -52,8 +52,6 @@ private:
 	UPROPERTY()
 	bool bIsCurrentlyLoading;
 
-	EPFNNMode LoadingMode;
-
 	/*
 	* @Description Load weights for the Phase Function Neural Network
 	* @Param[in] arg_Rows, Number of rows in the matrix

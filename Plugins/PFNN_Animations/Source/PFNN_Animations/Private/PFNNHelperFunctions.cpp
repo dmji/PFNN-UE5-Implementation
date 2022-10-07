@@ -22,7 +22,6 @@ glm::vec3 UPFNNHelperFunctions::XZYTranslationToXYZ(const glm::vec3& arg_Transla
 	return glm::vec3(arg_TranslationVector.x, arg_TranslationVector.z, arg_TranslationVector.y);
 }
 
-
 FFloat32 UPFNNHelperFileReader::readItem()
 {
 	FFloat32 item;
@@ -30,6 +29,11 @@ FFloat32 UPFNNHelperFileReader::readItem()
 
 	m_FileHandle->Read(ByteBuffer, sizeof(FFloat32));
 	return item;
+}
+
+bool UPFNNHelperFileReader::isOpen()
+{
+	return nullptr != m_FileHandle;
 }
 
 UPFNNHelperFileReader::UPFNNHelperFileReader(const FString arg_FileName, ...)

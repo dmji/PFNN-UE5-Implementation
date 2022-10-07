@@ -51,14 +51,17 @@ bool UPhaseFunctionNeuralNetwork::LoadNetworkData(UObject* arg_ContextObject)
 	{
 		if(!DataContainer->IsBeingLoaded())
 		{
-			if(DataContainer->IsDataLoaded())
+			if(!DataContainer->IsDataLoaded())
+			{
+				DataContainer->SetIsBeingLoaded(true);
+				GameInstance->LoadPFNNDataAsync();
+			}
+			else
 			{
 				DataContainer->GetNetworkData(*this);
 				DataContainer->GetDataLocker()->Unlock();
 				return true;
 			}
-			DataContainer->SetIsBeingLoaded(true);
-			GameInstance->LoadPFNNDataAsync();
 		}
 		else
 		{
