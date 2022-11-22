@@ -25,5 +25,11 @@
 			"Type": "DeveloperTool",
 			"LoadingPhase": "PreDefault"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "NeuralNetworkInference",
+			"Enabled": true
+		}
 	]
 }

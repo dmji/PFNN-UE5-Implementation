@@ -28,7 +28,8 @@ public class PFNN_Animations : ModuleRules
 				"Core",
 				"CoreUObject", 
 				"Engine",
-				"AnimGraph", 
+				"AnimGraph",
+                "NeuralNetworkInference", 
 				"BlueprintGraph"
 				// ... add other public dependencies that you statically link with here ...
 			}

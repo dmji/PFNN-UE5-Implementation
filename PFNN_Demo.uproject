@@ -19,7 +19,7 @@
 			]
 		},
 		{
-			"Name": "Linter",
+			"Name": "NeuralNetworkInference",
 			"Enabled": true
 		}
 	]
