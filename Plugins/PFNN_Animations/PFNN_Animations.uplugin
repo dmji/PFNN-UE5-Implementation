@@ -30,6 +30,10 @@
 		{
 			"Name": "NeuralNetworkInference",
 			"Enabled": true
+		},
+		{
+			"Name": "EigenKernal",
+			"Enabled": true
 		}
 	]
 }
