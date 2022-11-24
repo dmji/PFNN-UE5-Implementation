@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class EigenKernal : ModuleRules
+public class KernalLibrary : ModuleRules
 {
-	public EigenKernal(ReadOnlyTargetRules Target) : base(Target)
+	public KernalLibrary(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		

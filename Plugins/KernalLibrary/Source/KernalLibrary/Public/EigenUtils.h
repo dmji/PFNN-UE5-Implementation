@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 
 #include "../ThirdParty/Eigen/Dense"
-class EIGENKERNAL_API EigenUtils
+
+class KERNALLIBRARY_API EigenUtils
 {
 public:
 	typedef Eigen::MatrixXf Tensor;

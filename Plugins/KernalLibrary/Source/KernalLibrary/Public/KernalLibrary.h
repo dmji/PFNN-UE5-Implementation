@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FEigenKernalModule : public IModuleInterface
+class FKernalLibraryModule : public IModuleInterface
 {
 public:
 
