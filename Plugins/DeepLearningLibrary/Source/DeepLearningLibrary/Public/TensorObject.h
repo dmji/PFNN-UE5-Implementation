@@ -12,7 +12,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPFNNTensor, Log, All);
 /**
  * 
  */
-class PFNN_ANIMATIONS_API UTensorObject
+class DEEPLEARNINGLIBRARY_API UTensorObject
 {
 public:
 

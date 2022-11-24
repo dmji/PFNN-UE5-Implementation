@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class PFNN_Animations : ModuleRules
+public class DeepLearningLibrary : ModuleRules
 {
-	public PFNN_Animations(ReadOnlyTargetRules Target) : base(Target)
+	public DeepLearningLibrary(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -19,31 +19,29 @@ public class PFNN_Animations : ModuleRules
 			new string[] {
 				// ... add other private include paths required here ...
 			}
-            );
+			);
 			
 		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
-				"CoreUObject", 
-				"Engine",
-				"AnimGraph",
-                "NeuralNetworkInference", 
-				"BlueprintGraph",
 				// ... add other public dependencies that you statically link with here ...
 			}
-            );
+			);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "KernalLibrary",
-                "DeepLearningLibrary"
+				"CoreUObject",
+				"Engine",
+				"Slate",
+				"SlateCore",
+				"KernalLibrary"
 				// ... add private dependencies that you statically link with here ...	
 			}
-            );
+			);
 		
 		
 		DynamicallyLoadedModuleNames.AddRange(
@@ -51,6 +49,6 @@ public class PFNN_Animations : ModuleRules
 			{
 				// ... add any modules that your module loads dynamically here ...
 			}
-            );
+			);
 	}
 }

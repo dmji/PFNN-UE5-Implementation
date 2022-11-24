@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "PFNN_Animations",
+	"FriendlyName": "DeepLearningLibrary",
 	"Description": "",
 	"Category": "Other",
 	"CreatedBy": "Dmji",
@@ -16,14 +16,9 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "PFNN_Animations",
-			"Type": "DeveloperTool",
-			"LoadingPhase": "PreDefault"
-		},
-		{
-			"Name": "PFNN_AnimationsEditor",
-			"Type": "DeveloperTool",
-			"LoadingPhase": "PreDefault"
+			"Name": "DeepLearningLibrary",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
@@ -33,10 +28,6 @@
 		},
 		{
 			"Name": "KernalLibrary",
-			"Enabled": true
-		},
-		{
-			"Name": "DeepLearningLibrary",
 			"Enabled": true
 		}
 	]

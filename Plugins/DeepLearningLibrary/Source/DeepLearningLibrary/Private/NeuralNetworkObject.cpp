@@ -1,0 +1,18 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "NeuralNetworkObject.h"
+
+
+
+DEFINE_LOG_CATEGORY(LogPFNNBaseNeuralNetwork);
+
+
+
+NeuralNetworkObject::NeuralNetworkObject()
+{
+}
+
+NeuralNetworkObject::~NeuralNetworkObject()
+{
+}
