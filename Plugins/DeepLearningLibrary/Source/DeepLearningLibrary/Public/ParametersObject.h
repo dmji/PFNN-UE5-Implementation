@@ -26,9 +26,15 @@ public:
 /**
  * 
  */
-class DEEPLEARNINGLIBRARY_API UParametersObject
+class DEEPLEARNINGLIBRARY_API UParametersObject : UDataAsset
 {
 public:
+    static void operator delete(void* self)
+    {
+        ((UParametersObject*)self)->Matrices.Empty();
+        delete self;
+    }
+
     bool Validate();
     void Store(FString fn, int rows, int cols, FString id);
 
