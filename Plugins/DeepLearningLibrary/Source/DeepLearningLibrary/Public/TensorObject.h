@@ -15,6 +15,10 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPFNNTensor, Log, All);
 class DEEPLEARNINGLIBRARY_API UTensorObject
 {
 public:
+	bool operator==(const UTensorObject& a)
+	{
+		return a.Ptr == Ptr && a.ID == ID;
+	}
 
 	//UTensorObject(const FObjectInitializer&) : UTensorObject(0, 0)	{}
 	UTensorObject(const UTensorObject& obj)
