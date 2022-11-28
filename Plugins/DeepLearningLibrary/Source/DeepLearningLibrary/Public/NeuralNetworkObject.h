@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "TensorObject.h"
-
+#include "ParametersObject.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPFNNBaseNeuralNetwork, Log, All);
 
@@ -12,289 +12,180 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPFNNBaseNeuralNetwork, Log, All);
 /**
  * 
  */
-class DEEPLEARNINGLIBRARY_API NeuralNetworkObject
+class DEEPLEARNINGLIBRARY_API    NeuralNetworkObject
 {
 public:
 	NeuralNetworkObject();
-	~NeuralNetworkObject();
+	virtual ~NeuralNetworkObject();
 
+    virtual void Predict() = 0;
+
+    void StoreParameters();
+    void LoadParameters();
+    UTensorObject* CreateTensor(int rows, int cols, FString id);
+    UTensorObject* CreateTensor(UMatrixObject matrix);
     
-    /*
-public:
-    FString Folder = "";
-    FString Destination = "";
-    Parameters Parameters = null;
 
-    UTensorObject X;
-    UTensorObject Y;
-
-private:
-    int32 Pivot = -1;
-    TArray<UTensorObject> Tensors;
-
-protected:
-    abstract void StoreParametersDerived();
-    abstract void LoadParametersDerived();
-
-public:
-    public abstract void Predict();
-
-    public void StoreParameters()
+    void DeleteTensor(UTensorObject* T)
     {
-        Parameters = ScriptableObject.CreateInstance<Parameters>();
-        StoreParametersDerived();
-        if(!Parameters.Validate())
-        {
-            Parameters = null;
-        }
-        else
-        {
-#if UNITY_EDITOR
-            AssetDatabase.CreateAsset(Parameters, Destination + "/Parameters.asset");
-#endif
-        }
-    }
-    public void LoadParameters()
-    {
-        if(Parameters == null)
-        {
-            Debug.Log("Building PFNN failed because no parameters were saved.");
-        }
-        else
-        {
-            LoadParametersDerived();
-        }
-    }
-
-    public Tensor CreateTensor(int rows, int cols, string id)
-    {
-        if(Tensors.Exists(x = > x.ID == id))
-        {
-            Debug.Log("Tensor with ID " + id + " already contained.");
-            return null;
-        }
-        Tensor T = new Tensor(rows, cols, id);
-        Tensors.Add(T);
-        return T;
-    }
-
-    public Tensor CreateTensor(Parameters.Matrix matrix)
-    {
-        if(Tensors.Exists(x = > x.ID == matrix.ID))
-        {
-            Debug.Log("Tensor with ID " + matrix.ID + " already contained.");
-            return null;
-        }
-        Tensor T = new Tensor(matrix.Rows, matrix.Cols, matrix.ID);
-        for(int x = 0; x < matrix.Rows; x++)
-        {
-            for(int y = 0; y < matrix.Cols; y++)
-            {
-                T.SetValue(x, y, matrix.Values[x].Values[y]);
-            }
-        }
-        Tensors.Add(T);
-        return T;
-    }
-
-    public void DeleteTensor(Tensor T)
-    {
-        int index = Tensors.IndexOf(T);
+        int index = Tensors.IndexOfByKey(T);
         if(index == -1)
         {
-            Debug.Log("Tensor not found.");
+            UE_LOG(LogPFNNBaseNeuralNetwork, Log, TEXT("UTensorObject not found."));
             return;
         }
+
+        Tensors[index];
+        delete Tensors[index];
         Tensors.RemoveAt(index);
-        T.Delete();
     }
 
-    public Tensor GetTensor(string id)
+    UTensorObject* GetTensor(FString id)
     {
-        int index = Tensors.FindIndex(x = > x.ID == id);
+        return *Tensors.FindByPredicate([&id](const UTensorObject* x){ return x->ID == id; });
+    }
+
+    FString GetID(const UTensorObject* T)
+    {
+        int index = Tensors.IndexOfByKey(T);
         if(index == -1)
         {
-            return null;
+            return "";
         }
-        return Tensors[index];
+        return Tensors[index]->ID;
     }
 
-    public string GetID(Tensor T)
-    {
-        int index = Tensors.IndexOf(T);
-        if(index == -1)
-        {
-            return null;
-        }
-        return Tensors[index].ID;
-    }
-
-    public void ResetPivot()
+    void ResetPivot()
     {
         Pivot = -1;
     }
 
-    public void SetInput(int index, float value)
+    void SetInput(int index, float value)
     {
         Pivot = index;
-        X.SetValue(index, 0, value);
+        X->SetValue(index, 0, value);
     }
 
-    public float GetInput(int index)
+    float GetInput(int index)
     {
         Pivot = index;
-        return X.GetValue(index, 0);
+        return X->GetValue(index, 0);
     }
 
-    public void SetOutput(int index, float value)
+    void SetOutput(int index, float value)
     {
         Pivot = index;
-        Y.SetValue(index, 0, value);
+        Y->SetValue(index, 0, value);
     }
 
-    public float GetOutput(int index)
-    {
-        Pivot = index;
-        return Y.GetValue(index, 0);
-    }
 
-    public void Feed(float value)
+
+    void Feed(float value)
     {
         SetInput(Pivot + 1, value);
     }
 
-    public void Feed(float[] values)
+    void Feed(TArray<float>& values)
     {
-        for(int i = 0; i < values.Length; i++)
+        for(int i = 0; i < values.Num(); i++)
         {
             Feed(values[i]);
         }
     }
 
-    public void Feed(Vector2 vector)
+    void Feed(FVector2d vector)
     {
-        Feed(vector.x);
-        Feed(vector.y);
+        Feed(vector.X);
+        Feed(vector.Y);
     }
 
-    public void Feed(Vector3 vector)
+    void Feed(FVector3d vector)
     {
-        Feed(vector.x);
-        Feed(vector.y);
-        Feed(vector.z);
+        Feed(vector.X);
+        Feed(vector.Y);
+        Feed(vector.Z);
     }
 
-    public float Read()
+    float GetOutput(int index)
+    {
+        Pivot = index;
+        return Y->GetValue(index, 0);
+    }
+
+    float Read()
     {
         return GetOutput(Pivot + 1);
     }
 
-    public float[] Read(int count)
+    TArray<float> Read(int count)
     {
-        float[] values = new float[count];
+        TArray<float> values;
+        values.SetNum(count);
         for(int i = 0; i < count; i++)
-        {
             values[i] = Read();
-        }
         return values;
     }
 
-    public Tensor Normalise(Tensor IN, Tensor mean, Tensor std, Tensor OUT)
-    {
-        if(IN.GetRows() != mean.GetRows() || IN.GetRows() != std.GetRows() || IN.GetCols() != mean.GetCols() || IN.GetCols() != std.GetCols())
-        {
-            Debug.Log("Incompatible dimensions for normalisation.");
-            return IN;
-        }
-        else
-        {
-            Eigen.Normalise(IN.Ptr, mean.Ptr, std.Ptr, OUT.Ptr);
-            return OUT;
-        }
-    }
+    UTensorObject Normalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out);
+    UTensorObject Renormalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out);
+    UTensorObject Layer(UTensorObject in, UTensorObject W, UTensorObject b, UTensorObject& out);
+    UTensorObject Blend(UTensorObject T, UTensorObject W, float w);
 
-    public Tensor Renormalise(Tensor IN, Tensor mean, Tensor std, Tensor OUT)
+    UTensorObject ELU(UTensorObject T)
     {
-        if(IN.GetRows() != mean.GetRows() || IN.GetRows() != std.GetRows() || IN.GetCols() != mean.GetCols() || IN.GetCols() != std.GetCols())
-        {
-            Debug.Log("Incompatible dimensions for renormalisation.");
-            return IN;
-        }
-        else
-        {
-            Eigen.Renormalise(IN.Ptr, mean.Ptr, std.Ptr, OUT.Ptr);
-            return OUT;
-        }
-    }
-
-    public Tensor Layer(Tensor IN, Tensor W, Tensor b, Tensor OUT)
-    {
-        if(IN.GetRows() != W.GetCols() || W.GetRows() != b.GetRows() || IN.GetCols() != b.GetCols())
-        {
-            Debug.Log("Incompatible dimensions for feed-forward.");
-            return IN;
-        }
-        else
-        {
-            Eigen.Layer(IN.Ptr, W.Ptr, b.Ptr, OUT.Ptr);
-            return OUT;
-        }
-    }
-
-    public Tensor Blend(Tensor T, Tensor W, float w)
-    {
-        if(T.GetRows() != W.GetRows() || T.GetCols() != W.GetCols())
-        {
-            Debug.Log("Incompatible dimensions for blending.");
-            return T;
-        }
-        else
-        {
-            Eigen.Blend(T.Ptr, W.Ptr, w);
-            return T;
-        }
-    }
-
-    public Tensor ELU(Tensor T)
-    {
-        Eigen.ELU(T.Ptr);
+        EigenUtils::ELU(T.Ptr);
         return T;
     }
 
-    public Tensor Sigmoid(Tensor T)
+    UTensorObject Sigmoid(UTensorObject T)
     {
-        Eigen.Sigmoid(T.Ptr);
+        EigenUtils::Sigmoid(T.Ptr);
         return T;
     }
 
-    public Tensor TanH(Tensor T)
+    UTensorObject TanH(UTensorObject T)
     {
-        Eigen.TanH(T.Ptr);
+        EigenUtils::TanH(T.Ptr);
         return T;
     }
 
-    public Tensor SoftMax(Tensor T)
+    UTensorObject SoftMax(UTensorObject T)
     {
-        Eigen.SoftMax(T.Ptr);
+        EigenUtils::SoftMax(T.Ptr);
         return T;
     }
 
-    public Tensor LogSoftMax(Tensor T)
+    UTensorObject LogSoftMax(UTensorObject T)
     {
-        Eigen.LogSoftMax(T.Ptr);
+        EigenUtils::LogSoftMax(T.Ptr);
         return T;
     }
 
-    public Tensor SoftSign(Tensor T)
+    UTensorObject SoftSign(UTensorObject T)
     {
-        Eigen.SoftSign(T.Ptr);
+        EigenUtils::SoftSign(T.Ptr);
         return T;
     }
 
-    public Tensor Exp(Tensor T)
+    UTensorObject Exp(UTensorObject T)
     {
-        Eigen.Exp(T.Ptr);
+        EigenUtils::Exp(T.Ptr);
         return T;
     }
-    */
+
+protected:
+    virtual void StoreParametersDerived() = 0;
+    virtual void LoadParametersDerived() = 0;
+
+public:
+    FString Folder;
+    FString Destination;
+    TUniquePtr<UParametersObject> Parameters;
+
+    TUniquePtr<UTensorObject> X;
+    TUniquePtr<UTensorObject> Y;
+
+private:
+    int32 Pivot = -1;
+    TArray<UTensorObject*> Tensors;
 };
