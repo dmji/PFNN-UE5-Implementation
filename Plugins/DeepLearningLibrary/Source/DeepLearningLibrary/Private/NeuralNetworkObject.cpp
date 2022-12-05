@@ -74,58 +74,64 @@ UTensorObject* NeuralNetworkObject::CreateTensor(UMatrixObject matrix)
     return T;
 }
 
-UTensorObject NeuralNetworkObject::Normalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out)
+UTensorObject* NeuralNetworkObject::Normalise(UTensorObject* in, UTensorObject* mean, UTensorObject* std, UTensorObject* out)
 {
-    if(in.GetRows() != mean.GetRows() || in.GetRows() != std.GetRows() || in.GetCols() != mean.GetCols() || in.GetCols() != std.GetCols())
+    if(in->GetRows() != mean->GetRows() 
+       || in->GetRows() != std->GetRows() 
+       || in->GetCols() != mean->GetCols() 
+       || in->GetCols() != std->GetCols())
     {
         UE_LOG(LogPFNNBaseNeuralNetwork, Log, TEXT("Incompatible dimensions for normalisation."));
         return in;
     }
     else
     {
-        EigenUtils::Normalise(in.Ptr, mean.Ptr, std.Ptr, out.Ptr);
+        EigenUtils::Normalise(in->Ptr, mean->Ptr, std->Ptr, out->Ptr);
         return out;
     }
 }
 
-UTensorObject NeuralNetworkObject::Renormalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out)
+UTensorObject* NeuralNetworkObject::Renormalise(UTensorObject* in, UTensorObject* mean, UTensorObject* std, UTensorObject* out)
 {
-    if(in.GetRows() != mean.GetRows() || in.GetRows() != std.GetRows() || in.GetCols() != mean.GetCols() || in.GetCols() != std.GetCols())
+    if(in->GetRows() != mean->GetRows() 
+       || in->GetRows() != std->GetRows() 
+       || in->GetCols() != mean->GetCols() 
+       || in->GetCols() != std->GetCols())
     {
         UE_LOG(LogPFNNBaseNeuralNetwork, Log, TEXT("Incompatible dimensions for renormalisation."));
         return in;
     }
     else
     {
-        EigenUtils::Renormalise(in.Ptr, mean.Ptr, std.Ptr, out.Ptr);
+        EigenUtils::Renormalise(in->Ptr, mean->Ptr, std->Ptr, out->Ptr);
         return out;
     }
 }
 
-UTensorObject NeuralNetworkObject::Layer(UTensorObject in, UTensorObject W, UTensorObject b, UTensorObject& out)
+UTensorObject* NeuralNetworkObject::Layer(UTensorObject* in, UTensorObject* W, UTensorObject* b, UTensorObject* out)
 {
-    if(in.GetRows() != W.GetCols() || W.GetRows() != b.GetRows() || in.GetCols() != b.GetCols())
+    if(in->GetRows() != W->GetCols() || W->GetRows() != b->GetRows() || in->GetCols() != b->GetCols())
     {
         UE_LOG(LogPFNNBaseNeuralNetwork, Log, TEXT("Incompatible dimensions for feed-forward."));
         return in;
     }
     else
     {
-        EigenUtils::Layer(in.Ptr, W.Ptr, b.Ptr, out.Ptr);
+        EigenUtils::Layer(in->Ptr, W->Ptr, b->Ptr, out->Ptr);
         return out;
     }
 }
 
-UTensorObject NeuralNetworkObject::Blend(UTensorObject T, UTensorObject W, float w)
+UTensorObject* NeuralNetworkObject::Blend(UTensorObject* T, UTensorObject* W, float w)
 {
-    if(T.GetRows() != W.GetRows() || T.GetCols() != W.GetCols())
+    if(T->GetRows() != W->GetRows() || T->GetCols() != W->GetCols())
     {
         UE_LOG(LogPFNNBaseNeuralNetwork, Log, TEXT("Incompatible dimensions for blending."));
         return T;
     }
     else
     {
-        EigenUtils::Blend(T.Ptr, W.Ptr, w);
+        EigenUtils::Blend(T->Ptr, W->Ptr, w);
         return T;
     }
 }

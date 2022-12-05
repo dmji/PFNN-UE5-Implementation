@@ -126,50 +126,50 @@ public:
         return values;
     }
 
-    UTensorObject Normalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out);
-    UTensorObject Renormalise(UTensorObject in, UTensorObject mean, UTensorObject std, UTensorObject& out);
-    UTensorObject Layer(UTensorObject in, UTensorObject W, UTensorObject b, UTensorObject& out);
-    UTensorObject Blend(UTensorObject T, UTensorObject W, float w);
+    UTensorObject* Normalise(UTensorObject* in, UTensorObject* mean, UTensorObject* std, UTensorObject* out);
+    UTensorObject* Renormalise(UTensorObject* in, UTensorObject* mean, UTensorObject* std, UTensorObject* out);
+    UTensorObject* Layer(UTensorObject* in, UTensorObject* W, UTensorObject* b, UTensorObject* out);
+    UTensorObject* Blend(UTensorObject* T, UTensorObject* W, float w);
 
-    UTensorObject ELU(UTensorObject T)
+    UTensorObject* ELU(UTensorObject* T)
     {
-        EigenUtils::ELU(T.Ptr);
+        EigenUtils::ELU(T->Ptr);
         return T;
     }
 
-    UTensorObject Sigmoid(UTensorObject T)
+    UTensorObject* Sigmoid(UTensorObject* T)
     {
-        EigenUtils::Sigmoid(T.Ptr);
+        EigenUtils::Sigmoid(T->Ptr);
         return T;
     }
 
-    UTensorObject TanH(UTensorObject T)
+    UTensorObject* TanH(UTensorObject* T)
     {
-        EigenUtils::TanH(T.Ptr);
+        EigenUtils::TanH(T->Ptr);
         return T;
     }
 
-    UTensorObject SoftMax(UTensorObject T)
+    UTensorObject* SoftMax(UTensorObject* T)
     {
-        EigenUtils::SoftMax(T.Ptr);
+        EigenUtils::SoftMax(T->Ptr);
         return T;
     }
 
-    UTensorObject LogSoftMax(UTensorObject T)
+    UTensorObject* LogSoftMax(UTensorObject* T)
     {
-        EigenUtils::LogSoftMax(T.Ptr);
+        EigenUtils::LogSoftMax(T->Ptr);
         return T;
     }
 
-    UTensorObject SoftSign(UTensorObject T)
+    UTensorObject* SoftSign(UTensorObject* T)
     {
-        EigenUtils::SoftSign(T.Ptr);
+        EigenUtils::SoftSign(T->Ptr);
         return T;
     }
 
-    UTensorObject Exp(UTensorObject T)
+    UTensorObject* Exp(UTensorObject* T)
     {
-        EigenUtils::Exp(T.Ptr);
+        EigenUtils::Exp(T->Ptr);
         return T;
     }
 
@@ -182,8 +182,8 @@ public:
     FString Destination;
     TUniquePtr<UParametersObject> Parameters;
 
-    TUniquePtr<UTensorObject> X;
-    TUniquePtr<UTensorObject> Y;
+    UTensorObject* X;
+    UTensorObject* Y;
 
 private:
     int32 Pivot = -1;
